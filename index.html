@@ -99,6 +99,16 @@
                                     <i class="bi bi-file-earmark-bar-graph me-2"></i> Reports
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-page="files">
+                                    <i class="bi bi-folder2-open me-2"></i> Project Files
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-page="stocks">
+                                    <i class="bi bi-boxes me-2"></i> Stocks
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </nav>
@@ -302,6 +312,97 @@
                         </div>
                     </div>
 
+                    <!-- Files View -->
+                    <div id="view-files" class="content-view d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3>Project Files</h3>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
+                                <i class="bi bi-cloud-upload"></i> Upload File
+                            </button>
+                        </div>
+                        
+                        <ul class="nav nav-tabs mb-3" id="fileFilters">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#" data-filter="all">All</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-filter="cad">CAD Drawings</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-filter="image">Images</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-filter="document">Documents</a>
+                            </li>
+                        </ul>
+                        
+                        <div class="row" id="files-list">
+                            <!-- File Cards will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- STOCKS VIEW -->
+                    <div id="view-stocks" class="content-view d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3>Material Stocks</h3>
+                        </div>
+                        
+                        <div class="row">
+                            <!-- Steel Stock Table -->
+                            <div class="col-md-12 mb-4">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-secondary text-white">
+                                        <h5 class="mb-0">Steel Stock</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-striped" id="steel-stock-table">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Diameter</th>
+                                                        <th>Total No's</th>
+                                                        <th>Total Kg</th>
+                                                        <th>Avg Rate</th>
+                                                        <th>Total Value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Steel data rows -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Other Materials Stock Table -->
+                            <div class="col-md-12">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-secondary text-white">
+                                        <h5 class="mb-0">Other Materials</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-striped" id="other-stock-table">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Material Name</th>
+                                                        <th>Total Quantity</th>
+                                                        <th>Unit</th>
+                                                        <th>Avg Rate</th>
+                                                        <th>Total Value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Other materials data rows -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </main>
             </div>
         </div>
@@ -423,20 +524,82 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Supplier Name</label>
-                                        <input type="text" name="party_name" class="form-control" required>
+                                        <div class="input-group">
+                                            <select name="party_name" class="form-select party-select" data-type="supplier" required>
+                                                <option value="">Select Supplier</option>
+                                            </select>
+                                            <button class="btn btn-outline-secondary add-party-btn" type="button" data-type="supplier">
+                                                <i class="bi bi-plus-lg"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label">Material Name</label>
-                                        <input type="text" name="item_name" class="form-control" required>
+                                        <div class="input-group">
+                                            <select name="item_name" class="form-select material-select" required>
+                                                <option value="">Select Material</option>
+                                            </select>
+                                            <button class="btn btn-outline-secondary add-material-btn" type="button">
+                                                <i class="bi bi-plus-lg"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Quantity</label>
-                                        <input type="number" name="quantity" class="form-control calc-trigger" step="0.01" required>
+                                    
+                                    <!-- Dynamic Section based on Material Selection -->
+                                    <div class="col-12" id="material-input-container">
+                                        <!-- Default Inputs -->
+                                        <div class="row g-3" id="default-material-inputs">
+                                            <div class="col-md-2">
+                                                <label class="form-label">Unit</label>
+                                                <select name="unit" class="form-select">
+                                                    <option value="">-</option>
+                                                    <option value="Brass">Brass</option>
+                                                    <option value="Nos">Nos</option>
+                                                    <option value="Sq.ft">Sq.ft</option>
+                                                    <option value="Sq.m">Sq.m</option>
+                                                    <option value="Cu.m">Cu.m</option>
+                                                    <option value="Tons">Tons</option>
+                                                    <option value="Kg">Kg</option>
+                                                    <option value="Bags">Bags</option>
+                                                    <option value="Ltr">Ltr</option>
+                                                    <option value="Ft">Ft</option>
+                                                    <option value="Box">Box</option>
+                                                    <option value="Set">Set</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Quantity</label>
+                                                <input type="number" name="quantity" class="form-control calc-trigger" step="0.01">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Rate</label>
+                                                <input type="number" name="rate" class="form-control calc-trigger" step="0.01">
+                                            </div>
+                                        </div>
+
+                                        <!-- Steel Input Table -->
+                                        <div id="steel-material-inputs" class="d-none">
+                                            <label class="form-label">Steel Stock Details</label>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 15%">Diameter</th>
+                                                            <th>No's</th>
+                                                            <th>Kg</th>
+                                                            <th>Rate</th>
+                                                            <th>Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="steel-input-tbody">
+                                                        <!-- Rows generated by JS or Static -->
+                                                        <!-- 6mm to 40mm -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Rate</label>
-                                        <input type="number" name="rate" class="form-control calc-trigger" step="0.01" required>
-                                    </div>
+
                                     <div class="col-md-6">
                                         <label class="form-label">Total Amount</label>
                                         <input type="number" name="amount" class="form-control" readonly>
@@ -480,7 +643,14 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Worker Name</label>
-                                        <input type="text" name="party_name" class="form-control" required>
+                                        <div class="input-group">
+                                            <select name="party_name" class="form-select party-select" data-type="labor" required>
+                                                <option value="">Select Worker</option>
+                                            </select>
+                                            <button class="btn btn-outline-secondary add-party-btn" type="button" data-type="labor">
+                                                <i class="bi bi-plus-lg"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Wage Type</label>
@@ -491,7 +661,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Task Details</label>
-                                        <input type="text" name="item_name" class="form-control" placeholder="e.g. Brickwork, Plastering">
+                                        <textarea name="item_name" class="form-control" placeholder="e.g. Brickwork, Plastering" rows="1"></textarea>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Count (Days/Hours)</label>
@@ -538,9 +708,21 @@
                                         <label class="form-label">Service Provider</label>
                                         <input type="text" name="party_name" class="form-control" required>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label">Service Type (JCB, etc.)</label>
                                         <input type="text" name="item_name" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Unit</label>
+                                        <select name="unit" class="form-select">
+                                            <option value="">-</option>
+                                            <option value="Hrs">Hrs</option>
+                                            <option value="Trips">Trips</option>
+                                            <option value="Km">Km</option>
+                                            <option value="Nos">Nos</option>
+                                            <option value="Lumpsum">Lumpsum</option>
+                                            <option value="Month">Month</option>
+                                        </select>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Quantity</label>
@@ -578,16 +760,86 @@
         </div>
     </div>
     
-    <!-- Image Preview Modal -->
+    <!-- File Preview Modal -->
     <div class="modal fade" id="imagePreviewModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Attachment Preview</h5>
+                    <h5 class="modal-title">File Preview</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body text-center">
-                    <img id="preview-image" src="" class="img-fluid" alt="Attachment">
+                <div class="modal-body text-center p-0">
+                    <img id="preview-image" src="" class="img-fluid" alt="Attachment" style="display:none; max-height: 80vh; margin: auto;">
+                    <iframe id="preview-frame" src="" style="width:100%; height:80vh; border:none; display:none;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Payment Modal -->
+    <div class="modal fade" id="addPaymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="payment-form">
+                        <input type="hidden" name="entry_id" id="payment-entry-id">
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="date" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Payment Amount</label>
+                            <input type="number" name="amount" class="form-control" step="0.01" required>
+                            <div class="form-text text-danger" id="payment-due-hint"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Payment Mode</label>
+                            <select name="payment_mode" class="form-select">
+                                <option value="Cash">Cash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Cheque">Cheque</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Save Payment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload File Modal -->
+    <div class="modal fade" id="uploadFileModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload Project File</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="upload-file-form">
+                        <div class="mb-3">
+                            <label class="form-label">File Type</label>
+                            <select name="category" class="form-select" required>
+                                <option value="cad">CAD File (.dwg, .dxf)</option>
+                                <option value="image">Construction Photo</option>
+                                <option value="document">Document (PDF, Excel, Report)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description / Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Ground Floor Plan" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Select File</label>
+                            <input type="file" name="file" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Upload</button>
+                    </form>
                 </div>
             </div>
         </div>

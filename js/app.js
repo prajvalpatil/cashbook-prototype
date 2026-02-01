@@ -127,12 +127,18 @@ const App = {
             await this.handleEntrySubmit(e.target, 'addCashOutModal');
         });
 
+        // Add Payment
+        document.getElementById('payment-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handlePaymentSubmit(e.target);
+        });
+
         // Auto-calculation logic for forms
-        document.querySelectorAll('.calc-trigger').forEach(input => {
-            input.addEventListener('input', (e) => {
+        document.body.addEventListener('input', (e) => {
+            if (e.target.classList.contains('calc-trigger')) {
                 const form = e.target.closest('form');
-                this.calculateFormTotals(form);
-            });
+                if (form) this.calculateFormTotals(form);
+            }
         });
 
         // Reset Cash Out Modal Tabs on Open
@@ -159,6 +165,160 @@ const App = {
                 document.getElementById('material-form').reset();
                 document.getElementById('labor-form').reset();
                 document.getElementById('service-form').reset();
+                
+                // Reset Steel Table visibility
+                const materialForm = document.getElementById('material-form');
+                if (materialForm) {
+                    materialForm.querySelector('#default-material-inputs').classList.remove('d-none');
+                    materialForm.querySelector('#steel-material-inputs').classList.add('d-none');
+                    materialForm.querySelector('#steel-input-tbody').innerHTML = ''; // Clear table
+                }
+
+                // Populate Dropdowns
+                this.updatePartyDropdowns();
+                this.updateMaterialDropdowns();
+            });
+        }
+
+        // File Upload
+        document.getElementById('upload-file-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.handleFileUpload(e.target);
+        });
+
+        // File Filtering
+        document.querySelectorAll('#fileFilters .nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('#fileFilters .nav-link').forEach(l => l.classList.remove('active'));
+                e.target.classList.add('active');
+                this.renderFiles(e.target.dataset.filter);
+            });
+        });
+
+        // Add Party Button Handler
+        document.body.addEventListener('click', (e) => {
+            if (e.target.closest('.add-party-btn')) {
+                const btn = e.target.closest('.add-party-btn');
+                const type = btn.dataset.type;
+                const typeLabel = type === 'supplier' ? 'Supplier' : 'Labor';
+                
+                const name = prompt(`Enter new ${typeLabel} name:`);
+                if (name && name.trim()) {
+                    const newParty = Storage.addParty({
+                        name: name.trim(),
+                        type: type
+                    });
+                    
+                    if (newParty) {
+                        this.updatePartyDropdowns();
+                        // Select the new party in the specific dropdown associated with the button
+                        const select = btn.previousElementSibling;
+                        if (select) {
+                            select.value = newParty.name;
+                        }
+                    }
+                }
+            } else if (e.target.closest('.add-material-btn')) {
+                const btn = e.target.closest('.add-material-btn');
+                const name = prompt('Enter new Material name:');
+                if (name && name.trim()) {
+                    const newMat = Storage.addMaterial(name.trim());
+                    if (newMat) {
+                        this.updateMaterialDropdowns();
+                        const select = btn.previousElementSibling;
+                        if (select) {
+                            select.value = newMat; // Fixed: newMat is a string
+                            select.dispatchEvent(new Event('change'));
+                        }
+                    }
+                }
+            }
+        });
+
+        // Material Select Change Handler
+        document.body.addEventListener('change', (e) => {
+            if (e.target.classList.contains('material-select')) {
+                const materialName = e.target.value;
+                const form = e.target.closest('form');
+                const defaultInputs = form.querySelector('#default-material-inputs');
+                const steelInputs = form.querySelector('#steel-material-inputs');
+                
+                if (materialName.toLowerCase() === 'steel') {
+                    defaultInputs.classList.add('d-none');
+                    steelInputs.classList.remove('d-none');
+                    // Remove required from default inputs
+                    defaultInputs.querySelectorAll('input').forEach(i => i.removeAttribute('required'));
+                    
+                    this.renderSteelTable(form);
+                } else {
+                    defaultInputs.classList.remove('d-none');
+                    steelInputs.classList.add('d-none');
+                    // Add required back to default inputs (quantity and rate)
+                    form.querySelector('[name="quantity"]').setAttribute('required', 'true');
+                    form.querySelector('[name="rate"]').setAttribute('required', 'true');
+                }
+                // Clear amounts
+                const amountInput = form.querySelector('[name="amount"]');
+                if (amountInput) amountInput.value = '';
+            }
+        });
+    },
+
+    updatePartyDropdowns: function() {
+        const parties = Storage.getParties();
+        
+        document.querySelectorAll('.party-select').forEach(select => {
+            const type = select.dataset.type;
+            const currentVal = select.value;
+            
+            // Clear except first
+            select.innerHTML = '<option value="">Select ' + (type === 'supplier' ? 'Supplier' : 'Worker') + '</option>';
+            
+            parties.filter(p => p.type === type).forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.name;
+                option.textContent = p.name;
+                select.appendChild(option);
+            });
+            
+            if (currentVal) {
+                select.value = currentVal;
+            }
+        });
+    },
+
+    updateMaterialDropdowns: function() {
+        const materials = Storage.getMaterials();
+        document.querySelectorAll('.material-select').forEach(select => {
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">Select Material</option>';
+            materials.forEach(m => {
+                const option = document.createElement('option');
+                option.value = m;
+                option.textContent = m;
+                select.appendChild(option);
+            });
+            if (currentVal) select.value = currentVal;
+        });
+    },
+
+    renderSteelTable: function(form) {
+        const tbody = form.querySelector('#steel-input-tbody');
+        if (!tbody) return;
+        
+        if (tbody.children.length === 0) {
+            const standardDias = [6, 8, 10, 12, 16, 20, 25, 32, 40];
+            standardDias.forEach(dia => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${dia}mm</td>
+                    <td><input type="number" class="form-control form-control-sm steel-nos calc-trigger" data-dia="${dia}" placeholder="No's"></td>
+                    <td><input type="number" step="0.01" class="form-control form-control-sm steel-kg calc-trigger" placeholder="Kg"></td>
+                    <td><input type="number" step="0.01" class="form-control form-control-sm steel-rate calc-trigger" placeholder="Rate"></td>
+                    <td><input type="text" class="form-control form-control-sm steel-total" readonly></td>
+                `;
+                tbody.appendChild(tr);
             });
         }
     },
@@ -237,10 +397,103 @@ const App = {
         if (specificPage === 'projects') this.renderProjectsList();
         if (specificPage === 'cashbook') this.renderCashbook();
         if (specificPage === 'ledgers') this.renderLedgers();
+        if (specificPage === 'files') this.renderFiles();
+        if (specificPage === 'stocks') this.renderStocks();
         // Reports are generated on demand
     },
 
     // --- Render Functions ---
+
+    renderStocks: function() {
+        if (!this.currentProjectId) return;
+        
+        const entries = Storage.getEntriesByProject(this.currentProjectId);
+        
+        // Steel Stock Aggregation
+        const steelStock = {}; // Key: diameter, Value: { nos, kg, totalValue }
+        // Initialize for standard diameters to ensure they appear even if empty? 
+        // User said "fixed rows", so maybe just render what we have or all?
+        // Let's render all standard diameters for consistency.
+        const standardDias = [6, 8, 10, 12, 16, 20, 25, 32, 40];
+        standardDias.forEach(d => {
+            steelStock[d] = { nos: 0, kg: 0, totalValue: 0 };
+        });
+
+        // Other Stock Aggregation
+        const otherStock = {}; // Key: materialName, Value: { quantity, unit, totalValue }
+
+        entries.forEach(e => {
+            // Only consider Cash Out entries for Material
+            // We need to check category or infer from item_name/form type
+            // The form sets category hidden input? Let's check index.html.
+            // Material form has <input type="hidden" name="category" value="material">
+            
+            if (e.type === 'cash_out' && e.category === 'material') {
+                const materialName = e.item_name;
+                
+                if (materialName && materialName.toLowerCase() === 'steel' && e.stockDetails) {
+                    e.stockDetails.forEach(detail => {
+                        const dia = parseInt(detail.diameter);
+                        if (steelStock[dia]) {
+                            steelStock[dia].nos += parseFloat(detail.nos || 0);
+                            steelStock[dia].kg += parseFloat(detail.kg || 0);
+                            steelStock[dia].totalValue += (parseFloat(detail.kg || 0) * parseFloat(detail.rate || 0));
+                        }
+                    });
+                } else if (materialName && materialName.toLowerCase() !== 'steel') {
+                    if (!otherStock[materialName]) {
+                        otherStock[materialName] = { quantity: 0, unit: e.unit || '', totalValue: 0 };
+                    }
+                    otherStock[materialName].quantity += parseFloat(e.quantity || 0);
+                    otherStock[materialName].totalValue += parseFloat(e.amount || 0); // amount is total cost
+                    // Update unit if missing
+                    if (!otherStock[materialName].unit && e.unit) {
+                        otherStock[materialName].unit = e.unit;
+                    }
+                }
+            }
+        });
+
+        // Render Steel Table
+        const steelTbody = document.querySelector('#steel-stock-table tbody');
+        steelTbody.innerHTML = '';
+        standardDias.forEach(dia => {
+            const data = steelStock[dia];
+            const avgRate = data.kg > 0 ? (data.totalValue / data.kg).toFixed(2) : '0.00';
+            
+            // Only show rows that have data? Or all? 
+            // "The table contain following column 1. Bar Diameter which contains fixed rows..."
+            // Usually stock views show what is available. I will show all for now as per "fixed rows" mentality.
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dia}mm</td>
+                <td>${data.nos.toLocaleString()}</td>
+                <td>${data.kg.toFixed(2)}</td>
+                <td>₹${avgRate}</td>
+                <td>₹${data.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            `;
+            steelTbody.appendChild(tr);
+        });
+
+        // Render Other Materials Table
+        const otherTbody = document.querySelector('#other-stock-table tbody');
+        otherTbody.innerHTML = '';
+        Object.keys(otherStock).forEach(name => {
+            const data = otherStock[name];
+            const avgRate = data.quantity > 0 ? (data.totalValue / data.quantity).toFixed(2) : '0.00';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${name}</td>
+                <td>${data.quantity.toLocaleString()}</td>
+                <td>${data.unit}</td>
+                <td>₹${avgRate}</td>
+                <td>₹${data.totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            `;
+            otherTbody.appendChild(tr);
+        });
+    },
 
     renderDashboard: function() {
         if (!this.currentProjectId) return;
@@ -325,7 +578,7 @@ const App = {
             const tr = document.createElement('tr');
             const isCashIn = e.type === 'cash_in';
             const details = e.item_name 
-                ? `${e.item_name} (${e.quantity || ''} @ ${e.rate || ''})`
+                ? `${e.item_name} (${e.quantity || ''} ${e.unit || ''} @ ${e.rate || ''})`
                 : (e.notes || '-');
 
             tr.innerHTML = `
@@ -337,9 +590,13 @@ const App = {
                     <small>${details}</small>
                 </td>
                 <td>₹${parseFloat(e.amount).toLocaleString()}</td>
-                <td>${e.paid ? '₹'+parseFloat(e.paid).toLocaleString() : '-'}</td>
+                <td>
+                    ₹${parseFloat(e.paid).toLocaleString()}
+                    ${this.renderPaymentHistory(e)}
+                </td>
                 <td class="${e.due > 0 ? 'text-danger fw-bold' : ''}">${e.due ? '₹'+parseFloat(e.due).toLocaleString() : '-'}</td>
                 <td>
+                    ${e.due > 0 && !isCashIn ? `<button class="btn btn-sm btn-success me-1" onclick="App.openPaymentModal('${e.id}')">Pay</button>` : ''}
                     ${e.attachment ? `<button class="btn btn-sm btn-info me-1" onclick="App.viewAttachment('${e.id}')"><i class="bi bi-paperclip"></i></button>` : ''}
                     ${this.currentUser.role === 'admin' ? `<button class="btn btn-sm btn-danger" onclick="App.deleteEntry('${e.id}')"><i class="bi bi-trash"></i></button>` : ''}
                 </td>
@@ -417,7 +674,135 @@ const App = {
         });
     },
 
+    renderFiles: function(filter = 'all') {
+        if (!this.currentProjectId) return;
+        
+        let files = Storage.getFilesByProject(this.currentProjectId);
+        
+        if (filter !== 'all') {
+            files = files.filter(f => f.category === filter);
+        }
+
+        // Sort by newest first
+        files.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+
+        const container = document.getElementById('files-list');
+        container.innerHTML = '';
+
+        if (files.length === 0) {
+            container.innerHTML = '<div class="col-12 text-center text-muted py-5">No files found.</div>';
+            return;
+        }
+
+        files.forEach(f => {
+            let iconClass = 'bi-file-earmark-text';
+            let colorClass = 'bg-secondary';
+            
+            if (f.category === 'cad') { iconClass = 'bi-bounding-box-circles'; colorClass = 'bg-info'; }
+            if (f.category === 'image') { iconClass = 'bi-card-image'; colorClass = 'bg-warning'; }
+            if (f.category === 'document') { iconClass = 'bi-file-earmark-pdf'; colorClass = 'bg-danger'; }
+
+            const col = document.createElement('div');
+            col.className = 'col-md-3 col-sm-6';
+            col.innerHTML = `
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi ${iconClass} fs-1 text-secondary"></i>
+                        </div>
+                        <h6 class="card-title text-truncate" title="${f.name}">${f.name}</h6>
+                        <span class="badge ${colorClass} mb-2">${f.category.toUpperCase()}</span>
+                        <p class="card-text small text-muted">
+                            ${new Date(f.uploadDate).toLocaleDateString()}
+                        </p>
+                        <div class="d-grid gap-2">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="App.previewFile('${f.id}')" ${!(f.category === 'image' || f.type === 'application/pdf') ? 'disabled title="Preview available for Images and PDFs only"' : ''}>
+                                    <i class="bi bi-eye"></i> Preview
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="App.downloadFile('${f.id}')">
+                                    <i class="bi bi-download"></i> Download
+                                </button>
+                            </div>
+                            ${this.currentUser.role === 'admin' ? `
+                                <button class="btn btn-sm btn-outline-danger" onclick="App.deleteFile('${f.id}')">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(col);
+        });
+    },
+
+    renderPaymentHistory: function(entry) {
+        if (!entry.payments || entry.payments.length === 0) return '';
+        
+        let html = '<div class="mt-1" style="font-size: 0.75rem; color: #666;">';
+        entry.payments.forEach(p => {
+            html += `<div>${p.date}: ₹${p.amount.toLocaleString()}</div>`;
+        });
+        html += '</div>';
+        return html;
+    },
+
     // --- Actions ---
+
+    openPaymentModal: function(entryId) {
+        const entry = Storage.getEntries().find(e => e.id === entryId);
+        if (!entry) return;
+
+        document.getElementById('payment-entry-id').value = entry.id;
+        document.getElementById('payment-due-hint').textContent = `Max payable: ₹${parseFloat(entry.due).toLocaleString()}`;
+        
+        const amountInput = document.querySelector('#payment-form input[name="amount"]');
+        amountInput.max = entry.due;
+        amountInput.value = entry.due; // Default to full payment
+
+        new bootstrap.Modal(document.getElementById('addPaymentModal')).show();
+    },
+
+    handlePaymentSubmit: function(form) {
+        const formData = new FormData(form);
+        const entryId = formData.get('entry_id');
+        const amount = parseFloat(formData.get('amount'));
+        const date = formData.get('date');
+        const mode = formData.get('payment_mode');
+
+        if (isNaN(amount) || amount <= 0) {
+            alert('Invalid amount');
+            return;
+        }
+
+        const entry = Storage.getEntries().find(e => e.id === entryId);
+        if (!entry) return;
+
+        if (amount > parseFloat(entry.due)) {
+            alert('Payment cannot exceed due amount!');
+            return;
+        }
+
+        // Update Entry
+        entry.paid = parseFloat(entry.paid) + amount;
+        entry.due = parseFloat(entry.due) - amount;
+        
+        if (!entry.payments) entry.payments = [];
+        entry.payments.push({
+            amount: amount,
+            date: date,
+            mode: mode,
+            note: 'Partial Payment'
+        });
+
+        Storage.updateEntry(entry);
+        
+        bootstrap.Modal.getInstance(document.getElementById('addPaymentModal')).hide();
+        form.reset();
+        this.refreshCurrentView();
+        alert('Payment recorded successfully!');
+    },
 
     deleteProject: function(id) {
         if (confirm('Are you sure? This will delete all project data!')) {
@@ -434,6 +819,13 @@ const App = {
         }
     },
 
+    deleteFile: function(id) {
+        if (confirm('Delete this file?')) {
+            Storage.deleteFile(id);
+            this.refreshCurrentView();
+        }
+    },
+
     viewAttachment: function(entryId) {
         const entry = Storage.getEntries().find(e => e.id === entryId);
         if (entry && entry.attachment) {
@@ -443,9 +835,75 @@ const App = {
         }
     },
 
+    previewFile: function(fileId) {
+        const file = Storage.getFiles().find(f => f.id === fileId);
+        if (file && file.data) {
+            const img = document.getElementById('preview-image');
+            const frame = document.getElementById('preview-frame');
+            
+            // Reset display
+            img.style.display = 'none';
+            frame.style.display = 'none';
+
+            if (file.category === 'image') {
+                img.src = file.data;
+                img.style.display = 'block';
+                new bootstrap.Modal(document.getElementById('imagePreviewModal')).show();
+            } else if (file.type === 'application/pdf') {
+                frame.src = file.data;
+                frame.style.display = 'block';
+                new bootstrap.Modal(document.getElementById('imagePreviewModal')).show();
+            } else {
+                alert('Preview not available for this file type.');
+            }
+        } else {
+            alert('File not found.');
+        }
+    },
+
+    downloadFile: function(fileId) {
+        const file = Storage.getFiles().find(f => f.id === fileId);
+        if (file && file.data) {
+            const link = document.createElement('a');
+            link.href = file.data;
+            link.download = file.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            alert('File data not found.');
+        }
+    },
+
     // --- Helpers ---
 
     calculateFormTotals: function(form) {
+        // Special handling for Steel Table
+        const materialSelect = form.querySelector('.material-select');
+        if (materialSelect && materialSelect.value.toLowerCase() === 'steel') {
+            let totalAmount = 0;
+            form.querySelectorAll('#steel-input-tbody tr').forEach(row => {
+                const kg = parseFloat(row.querySelector('.steel-kg').value || 0);
+                const rate = parseFloat(row.querySelector('.steel-rate').value || 0);
+                const rowTotal = kg * rate;
+                
+                row.querySelector('.steel-total').value = rowTotal > 0 ? rowTotal.toFixed(2) : '';
+                totalAmount += rowTotal;
+            });
+            
+            const amountInput = form.querySelector('[name="amount"]');
+            if (amountInput) amountInput.value = totalAmount.toFixed(2);
+            
+            // Due calculation
+            const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
+            const due = totalAmount - paid;
+            const dueInput = form.querySelector('[name="due"]');
+            if (dueInput) dueInput.value = due.toFixed(2);
+            
+            return;
+        }
+
+        // Default handling
         const qty = parseFloat(form.querySelector('[name="quantity"]')?.value || 0);
         const rate = parseFloat(form.querySelector('[name="rate"]')?.value || 0);
         const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
@@ -472,6 +930,31 @@ const App = {
         entry.projectId = this.currentProjectId;
         entry.createdBy = this.currentUser.username;
         
+        // Handle Steel Stock Data
+        if (entry.item_name && entry.item_name.toLowerCase() === 'steel') {
+            const stockDetails = [];
+            form.querySelectorAll('#steel-input-tbody tr').forEach(row => {
+                const dia = row.querySelector('.steel-nos').dataset.dia;
+                const nos = row.querySelector('.steel-nos').value;
+                const kg = row.querySelector('.steel-kg').value;
+                const rate = row.querySelector('.steel-rate').value;
+                
+                if (kg && parseFloat(kg) > 0) {
+                    stockDetails.push({
+                        diameter: dia,
+                        nos: parseFloat(nos || 0),
+                        kg: parseFloat(kg),
+                        rate: parseFloat(rate || 0)
+                    });
+                }
+            });
+            entry.stockDetails = stockDetails;
+            // Ensure quantity/unit are set for display purposes (optional, but good for list view)
+            const totalKg = stockDetails.reduce((sum, item) => sum + item.kg, 0);
+            entry.quantity = totalKg;
+            entry.unit = 'Kg';
+        }
+
         // Handle File
         const fileInput = form.querySelector('input[type="file"]');
         if (fileInput && fileInput.files[0]) {
@@ -491,6 +974,50 @@ const App = {
         form.reset();
         this.refreshCurrentView();
         alert('Entry added successfully');
+    },
+
+    handleFileUpload: async function(form) {
+        if (!this.currentProjectId) {
+            alert('Please select a project first!');
+            return;
+        }
+
+        const formData = new FormData(form);
+        const fileInput = form.querySelector('input[type="file"]');
+        
+        if (!fileInput.files[0]) {
+            alert('Please select a file.');
+            return;
+        }
+
+        const file = {
+            projectId: this.currentProjectId,
+            category: formData.get('category'),
+            name: formData.get('name') || fileInput.files[0].name,
+            uploadedBy: this.currentUser.username,
+            type: fileInput.files[0].type
+        };
+
+        // Size check (simulated limit for local storage)
+        if (fileInput.files[0].size > 3000000) { // 3MB limit
+            alert('File too large for this prototype (Max 3MB).');
+            return;
+        }
+
+        try {
+            file.data = await this.readFileAsBase64(fileInput.files[0]);
+            
+            const result = Storage.addFile(file);
+            if (result) {
+                bootstrap.Modal.getInstance(document.getElementById('uploadFileModal')).hide();
+                form.reset();
+                this.refreshCurrentView();
+                alert('File uploaded successfully!');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Error uploading file.');
+        }
     },
 
     readFileAsBase64: function(file) {
