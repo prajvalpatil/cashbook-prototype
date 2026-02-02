@@ -223,9 +223,17 @@ const Storage = {
     getMaterials: function() {
         let materials = JSON.parse(localStorage.getItem(DB_KEYS.MATERIALS));
         if (!materials) {
-            // Default Materials
-            materials = ['Steel', 'Cement', 'Sand', 'Aggregate', 'Bricks'];
+            materials = ['Steel', 'Cement', 'Sand', 'Bricks', 'Tiles', 'Granite'];
             localStorage.setItem(DB_KEYS.MATERIALS, JSON.stringify(materials));
+        } else {
+            if (!materials.includes('Tiles')) {
+                materials.push('Tiles');
+                localStorage.setItem(DB_KEYS.MATERIALS, JSON.stringify(materials));
+            }
+            if (!materials.includes('Granite')) {
+                materials.push('Granite');
+                localStorage.setItem(DB_KEYS.MATERIALS, JSON.stringify(materials));
+            }
         }
         return materials;
     },

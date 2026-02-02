@@ -375,6 +375,66 @@
                                 </div>
                             </div>
                             
+                            <!-- Tiles Stock Table -->
+                            <div class="col-md-12">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-info text-white">
+                                        <h5 class="mb-0">Tiles Stock Details</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-striped" id="tiles-stock-table">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Supplier</th>
+                                                        <th>Room Name</th>
+                                                        <th>No. of Box</th>
+                                                        <th>Tiles Name</th>
+                                                        <th>Size (WxH)</th>
+                                                        <th>Total Sq.ft</th>
+                                                        <th>Rate</th>
+                                                        <th>Total Value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Tiles data rows -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                             <!-- Granite Stock Table -->
+                             <div class="col-md-12">
+                                 <div class="card shadow-sm">
+                                     <div class="card-header bg-primary text-white">
+                                         <h5 class="mb-0">Granite Stock Details</h5>
+                                     </div>
+                                     <div class="card-body">
+                                         <div class="table-responsive">
+                                             <table class="table table-bordered table-striped" id="granite-stock-table">
+                                                 <thead class="table-light">
+                                                     <tr>
+                                                         <th>Date</th>
+                                                         <th>Supplier</th>
+                                                         <th>Granite Name</th>
+                                                         <th>Nos</th>
+                                                         <th>Size (WxH)</th>
+                                                         <th>Total Sq.ft</th>
+                                                         <th>Rate</th>
+                                                         <th>Total Value</th>
+                                                     </tr>
+                                                 </thead>
+                                                 <tbody>
+                                                 </tbody>
+                                             </table>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+ 
                             <!-- Other Materials Stock Table -->
                             <div class="col-md-12">
                                 <div class="card shadow-sm">
@@ -596,6 +656,60 @@
                                                         <!-- 6mm to 40mm -->
                                                     </tbody>
                                                 </table>
+                                            </div>
+                                        </div>
+
+                                        <!-- Tiles Input Table -->
+                                        <div id="tiles-material-inputs" class="d-none">
+                                            <label class="form-label">Tiles Details</label>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 5%">Sr.No</th>
+                                                            <th>Room Name</th>
+                                                            <th style="width: 10%">No. of Box</th>
+                                                            <th>Tiles Name</th>
+                                                            <th style="width: 15%">Size</th>
+                                                            <th style="width: 10%">Total Sq.ft</th>
+                                                            <th style="width: 10%">Rate</th>
+                                                            <th style="width: 15%">Total</th>
+                                                            <th style="width: 5%">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tiles-input-tbody">
+                                                        <!-- Rows generated by JS -->
+                                                    </tbody>
+                                                </table>
+                                                <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-tiles-row-btn">
+                                                    <i class="bi bi-plus-lg"></i> Add Row
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Granite Input Table -->
+                                        <div id="granite-material-inputs" class="d-none">
+                                            <label class="form-label">Granite Details</label>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="width: 5%">Sr.No</th>
+                                                            <th>Granite Name</th>
+                                                            <th style="width: 10%">Nos</th>
+                                                            <th style="width: 15%">Total Size</th>
+                                                            <th style="width: 12%">Total Sq.ft</th>
+                                                            <th style="width: 10%">Rate</th>
+                                                            <th style="width: 15%">Total</th>
+                                                            <th style="width: 5%">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="granite-input-tbody">
+                                                    </tbody>
+                                                </table>
+                                                <button type="button" class="btn btn-sm btn-secondary mt-2" id="add-granite-row-btn">
+                                                    <i class="bi bi-plus-lg"></i> Add Row
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

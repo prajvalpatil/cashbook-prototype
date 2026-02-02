@@ -6,6 +6,9 @@
 const App = {
     currentUser: null,
     currentProjectId: null,
+    editingEntryId: null,
+    editingFormKind: null, // 'cash_in' | 'material' | 'labor' | 'service'
+    editingExistingAttachment: null,
 
     init: function() {
         this.currentUser = Storage.getCurrentUser();
@@ -107,24 +110,24 @@ const App = {
             alert('Project created successfully!');
         });
 
-        // Add Cash In
+        // Add / Edit Cash In
         document.getElementById('cash-in-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            await this.handleEntrySubmit(e.target, 'addCashInModal');
+            await this.handleEntrySubmit(e.target, 'addCashInModal', 'cash_in');
         });
 
-        // Add Cash Out (Material, Labor, Service)
+        // Add / Edit Cash Out (Material, Labor, Service)
         document.getElementById('material-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            await this.handleEntrySubmit(e.target, 'addCashOutModal');
+            await this.handleEntrySubmit(e.target, 'addCashOutModal', 'material');
         });
         document.getElementById('labor-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            await this.handleEntrySubmit(e.target, 'addCashOutModal');
+            await this.handleEntrySubmit(e.target, 'addCashOutModal', 'labor');
         });
         document.getElementById('service-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            await this.handleEntrySubmit(e.target, 'addCashOutModal');
+            await this.handleEntrySubmit(e.target, 'addCashOutModal', 'service');
         });
 
         // Add Payment
@@ -177,6 +180,19 @@ const App = {
                 // Populate Dropdowns
                 this.updatePartyDropdowns();
                 this.updateMaterialDropdowns();
+            });
+
+            // Clear edit state on close
+            cashOutModal.addEventListener('hidden.bs.modal', () => {
+                this.clearEditState();
+            });
+        }
+
+        // Clear edit state on cash-in modal close
+        const cashInModal = document.getElementById('addCashInModal');
+        if (cashInModal) {
+            cashInModal.addEventListener('hidden.bs.modal', () => {
+                this.clearEditState();
             });
         }
 
@@ -243,17 +259,33 @@ const App = {
                 const form = e.target.closest('form');
                 const defaultInputs = form.querySelector('#default-material-inputs');
                 const steelInputs = form.querySelector('#steel-material-inputs');
+                const tilesInputs = form.querySelector('#tiles-material-inputs');
+                const graniteInputs = form.querySelector('#granite-material-inputs');
                 
+                // Hide all first
+                defaultInputs.classList.add('d-none');
+                steelInputs.classList.add('d-none');
+                if (tilesInputs) tilesInputs.classList.add('d-none');
+                if (graniteInputs) graniteInputs.classList.add('d-none');
+
+                // Remove required from default inputs
+                defaultInputs.querySelectorAll('input').forEach(i => i.removeAttribute('required'));
+
                 if (materialName.toLowerCase() === 'steel') {
-                    defaultInputs.classList.add('d-none');
                     steelInputs.classList.remove('d-none');
-                    // Remove required from default inputs
-                    defaultInputs.querySelectorAll('input').forEach(i => i.removeAttribute('required'));
-                    
                     this.renderSteelTable(form);
+                } else if (materialName.toLowerCase() === 'tiles') {
+                    if (tilesInputs) {
+                        tilesInputs.classList.remove('d-none');
+                        this.renderTilesTable(form);
+                    }
+                } else if (materialName.toLowerCase() === 'granite') {
+                    if (graniteInputs) {
+                        graniteInputs.classList.remove('d-none');
+                        this.renderGraniteTable(form);
+                    }
                 } else {
                     defaultInputs.classList.remove('d-none');
-                    steelInputs.classList.add('d-none');
                     // Add required back to default inputs (quantity and rate)
                     form.querySelector('[name="quantity"]').setAttribute('required', 'true');
                     form.querySelector('[name="rate"]').setAttribute('required', 'true');
@@ -261,6 +293,95 @@ const App = {
                 // Clear amounts
                 const amountInput = form.querySelector('[name="amount"]');
                 if (amountInput) amountInput.value = '';
+            }
+        });
+
+        // Tiles Add Row Button
+        document.body.addEventListener('click', (e) => {
+            if (e.target.closest('#add-tiles-row-btn')) {
+                const form = e.target.closest('form');
+                this.addTilesRow(form);
+            }
+            // Remove Tiles Row
+            if (e.target.closest('.remove-tiles-row')) {
+                const row = e.target.closest('tr');
+                row.remove();
+                // Re-index Sr.No
+                const tbody = document.getElementById('tiles-input-tbody');
+                Array.from(tbody.children).forEach((tr, index) => {
+                    tr.querySelector('.sr-no').textContent = index + 1;
+                });
+                // Recalculate
+                const form = tbody.closest('form');
+                this.calculateFormTotals(form);
+            }
+        });
+
+        // Granite Add Row Button
+        document.body.addEventListener('click', (e) => {
+            if (e.target.closest('#add-granite-row-btn')) {
+                const form = e.target.closest('form');
+                this.addGraniteRow(form);
+            }
+            if (e.target.closest('.remove-granite-row')) {
+                const row = e.target.closest('tr');
+                row.remove();
+                const tbody = document.getElementById('granite-input-tbody');
+                Array.from(tbody.children).forEach((tr, index) => {
+                    tr.querySelector('.sr-no').textContent = index + 1;
+                });
+                const form = tbody.closest('form');
+                this.calculateFormTotals(form);
+            }
+        });
+
+        // Auto-calculate for Tiles inputs
+        document.body.addEventListener('input', (e) => {
+            if (e.target.classList.contains('tiles-calc-trigger')) {
+                const row = e.target.closest('tr');
+                if (row) {
+                    const w = parseFloat(row.querySelector('.tiles-w').value || 0);
+                    const h = parseFloat(row.querySelector('.tiles-h').value || 0);
+                    const boxes = parseFloat(row.querySelector('.tiles-boxes').value || 0);
+                    const rate = parseFloat(row.querySelector('.tiles-rate').value || 0);
+                    
+                    // Auto populate total sq.ft (size W×H)
+                    const totalSqFt = w * h;
+                    row.querySelector('.tiles-sqft').value = totalSqFt > 0 ? totalSqFt.toFixed(2) : '';
+                    
+                    // Total = Rate * No. of Box * Total Sq.ft (like Granite)
+                    const totalArea = totalSqFt * boxes;
+                    const total = totalArea * rate;
+                    row.querySelector('.tiles-total').value = total > 0 ? total.toFixed(2) : '';
+                    
+                    const form = row.closest('form');
+                    this.calculateFormTotals(form);
+                }
+            }
+        });
+
+        // Auto-calculate for Granite inputs
+        document.body.addEventListener('input', (e) => {
+            if (e.target.classList.contains('granite-calc-trigger')) {
+                const row = e.target.closest('tr');
+                if (row) {
+                    const w = parseFloat(row.querySelector('.granite-w').value || 0);
+                    const h = parseFloat(row.querySelector('.granite-h').value || 0);
+                    const nos = parseFloat(row.querySelector('.granite-nos').value || 0);
+                    const rate = parseFloat(row.querySelector('.granite-rate').value || 0);
+
+                    // Total Size (W×H) -> reflected in Total Sq.ft (per piece)
+                    const sizeSqFt = w * h;
+                    row.querySelector('.granite-sqft').value = sizeSqFt > 0 ? sizeSqFt.toFixed(2) : '';
+
+                    // Monetary total still considers number of pieces
+                    const totalArea = sizeSqFt * nos;
+                    const total = totalArea * rate;
+                    row.querySelector('.granite-total').value = total > 0 ? total.toFixed(2) : '';
+
+                    const form = row.closest('form');
+                    this.calculateFormTotals(form);
+                }
             }
         });
     },
@@ -321,6 +442,81 @@ const App = {
                 tbody.appendChild(tr);
             });
         }
+    },
+
+    renderTilesTable: function(form) {
+        const tbody = form.querySelector('#tiles-input-tbody');
+        if (!tbody) return;
+        
+        if (tbody.children.length === 0) {
+            this.addTilesRow(form);
+        }
+    },
+
+    addTilesRow: function(form) {
+        const tbody = form.querySelector('#tiles-input-tbody');
+        if (!tbody) return;
+
+        const rowCount = tbody.children.length + 1;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="text-center sr-no">${rowCount}</td>
+            <td><input type="text" class="form-control form-control-sm tiles-room" placeholder="Room"></td>
+            <td><input type="number" class="form-control form-control-sm tiles-boxes tiles-calc-trigger" placeholder="Box"></td>
+            <td><input type="text" class="form-control form-control-sm tiles-name" placeholder="Name"></td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control tiles-w tiles-calc-trigger" min=0>
+                    <span class="input-group-text">x</span>
+                    <input type="number" class="form-control tiles-h tiles-calc-trigger" min=0>
+                </div>
+            </td>
+            <td><input type="text" class="form-control form-control-sm tiles-sqft" readonly></td>
+            <td><input type="number" step="0.01" class="form-control form-control-sm tiles-rate tiles-calc-trigger" placeholder="Rate"></td>
+            <td><input type="text" class="form-control form-control-sm tiles-total" readonly></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-tiles-row">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    },
+    
+    renderGraniteTable: function(form) {
+        const tbody = form.querySelector('#granite-input-tbody');
+        if (!tbody) return;
+        if (tbody.children.length === 0) {
+            this.addGraniteRow(form);
+        }
+    },
+    
+    addGraniteRow: function(form) {
+        const tbody = form.querySelector('#granite-input-tbody');
+        if (!tbody) return;
+        const rowCount = tbody.children.length + 1;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="text-center sr-no">${rowCount}</td>
+            <td><input type="text" class="form-control form-control-sm granite-name" placeholder="Name"></td>
+            <td><input type="number" class="form-control form-control-sm granite-nos granite-calc-trigger" placeholder="Nos"></td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control granite-w granite-calc-trigger">
+                    <span class="input-group-text">x</span>
+                    <input type="number" class="form-control granite-h granite-calc-trigger">
+                </div>
+            </td>
+            <td><input type="text" class="form-control form-control-sm granite-sqft" readonly></td>
+            <td><input type="number" step="0.01" class="form-control form-control-sm granite-rate granite-calc-trigger" placeholder="Rate"></td>
+            <td><input type="text" class="form-control form-control-sm granite-total" readonly></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-granite-row">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
     },
 
     showLogin: function() {
@@ -411,23 +607,21 @@ const App = {
         
         // Steel Stock Aggregation
         const steelStock = {}; // Key: diameter, Value: { nos, kg, totalValue }
-        // Initialize for standard diameters to ensure they appear even if empty? 
-        // User said "fixed rows", so maybe just render what we have or all?
-        // Let's render all standard diameters for consistency.
+        // Initialize for standard diameters
         const standardDias = [6, 8, 10, 12, 16, 20, 25, 32, 40];
         standardDias.forEach(d => {
             steelStock[d] = { nos: 0, kg: 0, totalValue: 0 };
         });
 
+        // Tiles Stock List
+        const tilesStockList = [];
+        // Granite Stock List
+        const graniteStockList = [];
+
         // Other Stock Aggregation
         const otherStock = {}; // Key: materialName, Value: { quantity, unit, totalValue }
 
         entries.forEach(e => {
-            // Only consider Cash Out entries for Material
-            // We need to check category or infer from item_name/form type
-            // The form sets category hidden input? Let's check index.html.
-            // Material form has <input type="hidden" name="category" value="material">
-            
             if (e.type === 'cash_out' && e.category === 'material') {
                 const materialName = e.item_name;
                 
@@ -440,7 +634,23 @@ const App = {
                             steelStock[dia].totalValue += (parseFloat(detail.kg || 0) * parseFloat(detail.rate || 0));
                         }
                     });
-                } else if (materialName && materialName.toLowerCase() !== 'steel') {
+                } else if (materialName && materialName.toLowerCase() === 'tiles' && e.tilesDetails) {
+                    e.tilesDetails.forEach(detail => {
+                        tilesStockList.push({
+                            date: e.date,
+                            supplier: e.party_name,
+                            ...detail
+                        });
+                    });
+                } else if (materialName && materialName.toLowerCase() === 'granite' && e.graniteDetails) {
+                    e.graniteDetails.forEach(detail => {
+                        graniteStockList.push({
+                            date: e.date,
+                            supplier: e.party_name,
+                            ...detail
+                        });
+                    });
+                } else if (materialName && materialName.toLowerCase() !== 'steel' && materialName.toLowerCase() !== 'tiles' && materialName.toLowerCase() !== 'granite') {
                     if (!otherStock[materialName]) {
                         otherStock[materialName] = { quantity: 0, unit: e.unit || '', totalValue: 0 };
                     }
@@ -461,10 +671,6 @@ const App = {
             const data = steelStock[dia];
             const avgRate = data.kg > 0 ? (data.totalValue / data.kg).toFixed(2) : '0.00';
             
-            // Only show rows that have data? Or all? 
-            // "The table contain following column 1. Bar Diameter which contains fixed rows..."
-            // Usually stock views show what is available. I will show all for now as per "fixed rows" mentality.
-            
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${dia}mm</td>
@@ -475,6 +681,53 @@ const App = {
             `;
             steelTbody.appendChild(tr);
         });
+
+        // Render Tiles Table
+        const tilesTbody = document.querySelector('#tiles-stock-table tbody');
+        if (tilesTbody) {
+            tilesTbody.innerHTML = '';
+            // Sort by date desc
+            tilesStockList.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            tilesStockList.forEach(item => {
+                const totalSqFt = (item.w * item.h).toFixed(2);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.date}</td>
+                    <td>${item.supplier}</td>
+                    <td>${item.room || '-'}</td>
+                    <td>${item.boxes || 0}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${item.w} x ${item.h}</td>
+                    <td>${totalSqFt}</td>
+                    <td>₹${parseFloat(item.rate || 0).toFixed(2)}</td>
+                    <td>₹${parseFloat(item.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                `;
+                tilesTbody.appendChild(tr);
+            });
+        }
+        
+        // Render Granite Table
+        const graniteTbody = document.querySelector('#granite-stock-table tbody');
+        if (graniteTbody) {
+            graniteTbody.innerHTML = '';
+            graniteStockList.sort((a, b) => new Date(b.date) - new Date(a.date));
+            graniteStockList.forEach(item => {
+                const sqftVal = parseFloat(item.sqft || (item.w * item.h) || 0);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.date}</td>
+                    <td>${item.supplier}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${item.nos || 0}</td>
+                    <td>${item.w} x ${item.h}</td>
+                    <td>${sqftVal.toFixed(2)}</td>
+                    <td>₹${parseFloat(item.rate || 0).toFixed(2)}</td>
+                    <td>₹${parseFloat(item.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                `;
+                graniteTbody.appendChild(tr);
+            });
+        }
 
         // Render Other Materials Table
         const otherTbody = document.querySelector('#other-stock-table tbody');
@@ -598,7 +851,10 @@ const App = {
                 <td>
                     ${e.due > 0 && !isCashIn ? `<button class="btn btn-sm btn-success me-1" onclick="App.openPaymentModal('${e.id}')">Pay</button>` : ''}
                     ${e.attachment ? `<button class="btn btn-sm btn-info me-1" onclick="App.viewAttachment('${e.id}')"><i class="bi bi-paperclip"></i></button>` : ''}
-                    ${this.currentUser.role === 'admin' ? `<button class="btn btn-sm btn-danger" onclick="App.deleteEntry('${e.id}')"><i class="bi bi-trash"></i></button>` : ''}
+                    ${this.currentUser.role === 'admin' ? `
+                        <button class="btn btn-sm btn-warning me-1" onclick="App.editEntry('${e.id}')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="App.deleteEntry('${e.id}')"><i class="bi bi-trash"></i></button>
+                    ` : ''}
                 </td>
             `;
             tbody.appendChild(tr);
@@ -746,6 +1002,203 @@ const App = {
         });
         html += '</div>';
         return html;
+    },
+
+    clearEditState: function() {
+        this.editingEntryId = null;
+        this.editingFormKind = null;
+        this.editingExistingAttachment = null;
+        // Re-enable paid fields (they may be disabled during edit when payments exist)
+        ['material-form', 'labor-form', 'service-form'].forEach(id => {
+            const f = document.getElementById(id);
+            if (!f) return;
+            const paid = f.querySelector('[name="paid"]');
+            if (paid) paid.disabled = false;
+        });
+    },
+
+    editEntry: function(entryId) {
+        const entry = Storage.getEntries().find(e => e.id === entryId);
+        if (!entry) return;
+
+        this.editingEntryId = entryId;
+        this.editingExistingAttachment = entry.attachment || null;
+
+        if (entry.type === 'cash_in') {
+            this.editingFormKind = 'cash_in';
+
+            const modalEl = document.getElementById('addCashInModal');
+            const form = document.getElementById('cash-in-form');
+            if (!modalEl || !form) return;
+
+            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+
+            modalEl.addEventListener('shown.bs.modal', () => {
+                form.reset();
+                form.querySelector('[name="date"]').value = entry.date || '';
+                form.querySelector('[name="amount"]').value = entry.amount ?? '';
+                form.querySelector('[name="party_name"]').value = entry.party_name || '';
+                if (form.querySelector('[name="payment_mode"]')) form.querySelector('[name="payment_mode"]').value = entry.payment_mode || 'Cash';
+                if (form.querySelector('[name="notes"]')) form.querySelector('[name="notes"]').value = entry.notes || '';
+            }, { once: true });
+
+            return;
+        }
+
+        // cash_out
+        const modalEl = document.getElementById('addCashOutModal');
+        if (!modalEl) return;
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+        // Determine which tab/form to edit
+        const kind = entry.category === 'labor' ? 'labor' : (entry.category === 'service' ? 'service' : 'material');
+        this.editingFormKind = kind;
+
+        modal.show();
+
+        modalEl.addEventListener('shown.bs.modal', () => {
+            // Activate correct tab
+            const tabBtn = document.querySelector(`#pills-tab button[data-bs-target="#pill-${kind}"]`);
+            if (tabBtn) {
+                const tab = bootstrap.Tab.getInstance(tabBtn) || new bootstrap.Tab(tabBtn);
+                tab.show();
+            }
+
+            const form = document.getElementById(`${kind}-form`);
+            if (!form) return;
+
+            // Ensure dropdowns are populated
+            this.updatePartyDropdowns();
+            this.updateMaterialDropdowns();
+
+            // Fill shared fields
+            form.querySelector('[name="date"]').value = entry.date || '';
+            if (form.querySelector('[name="party_name"]')) form.querySelector('[name="party_name"]').value = entry.party_name || '';
+
+            // Payment handling: if payment history exists, keep paid locked to preserve history
+            const hasPayments = Array.isArray(entry.payments) && entry.payments.length > 0;
+            const paidEl = form.querySelector('[name="paid"]');
+            if (paidEl) {
+                paidEl.value = entry.paid ?? 0;
+                paidEl.disabled = hasPayments;
+            }
+            if (form.querySelector('[name="payment_mode"]')) form.querySelector('[name="payment_mode"]').value = entry.payment_mode || 'Cash';
+
+            if (kind === 'material') {
+                const materialSelect = form.querySelector('.material-select');
+                const matName = (entry.item_name || '').toLowerCase();
+                const defaultInputs = form.querySelector('#default-material-inputs');
+                const steelInputs = form.querySelector('#steel-material-inputs');
+                const tilesInputs = form.querySelector('#tiles-material-inputs');
+                const graniteInputs = form.querySelector('#granite-material-inputs');
+
+                // Defer so Material tab pane is visible after tab.show()
+                const runMaterialEdit = () => {
+                // Set material select to the option that matches (case-insensitive)
+                if (materialSelect && entry.item_name) {
+                    const opt = Array.from(materialSelect.options).find(o => (o.value || '').toLowerCase() === matName);
+                    if (opt) materialSelect.value = opt.value;
+                }
+
+                // Show the correct material input table immediately (don't rely on change event timing)
+                if (defaultInputs) defaultInputs.classList.add('d-none');
+                if (steelInputs) steelInputs.classList.add('d-none');
+                if (tilesInputs) tilesInputs.classList.add('d-none');
+                if (graniteInputs) graniteInputs.classList.add('d-none');
+                if (defaultInputs) defaultInputs.querySelectorAll('input').forEach(i => i.removeAttribute('required'));
+
+                if (matName === 'steel' && steelInputs) {
+                    steelInputs.classList.remove('d-none');
+                    this.renderSteelTable(form);
+                    const tbody = form.querySelector('#steel-input-tbody');
+                    if (tbody) {
+                        tbody.querySelectorAll('tr').forEach(tr => {
+                            tr.querySelector('.steel-nos').value = '';
+                            tr.querySelector('.steel-kg').value = '';
+                            tr.querySelector('.steel-rate').value = '';
+                        });
+                        (entry.stockDetails || []).forEach(d => {
+                            const dia = String(parseInt(d.diameter));
+                            const row = tbody.querySelector(`.steel-nos[data-dia="${dia}"]`)?.closest('tr');
+                            if (!row) return;
+                            row.querySelector('.steel-nos').value = d.nos ?? '';
+                            row.querySelector('.steel-kg').value = d.kg ?? '';
+                            row.querySelector('.steel-rate').value = d.rate ?? '';
+                        });
+                    }
+                } else if (matName === 'tiles' && tilesInputs) {
+                    tilesInputs.classList.remove('d-none');
+                    const tbody = form.querySelector('#tiles-input-tbody');
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        (entry.tilesDetails || []).forEach((d, idx) => {
+                            this.addTilesRow(form);
+                            const row = tbody.children[idx];
+                            if (!row) return;
+                            row.querySelector('.tiles-room').value = d.room || '';
+                            row.querySelector('.tiles-boxes').value = d.boxes ?? '';
+                            row.querySelector('.tiles-name').value = d.name || '';
+                            row.querySelector('.tiles-w').value = d.w ?? '';
+                            row.querySelector('.tiles-h').value = d.h ?? '';
+                            row.querySelector('.tiles-rate').value = d.rate ?? '';
+                            const sqft = (parseFloat(d.w || 0) * parseFloat(d.h || 0)) || 0;
+                            row.querySelector('.tiles-sqft').value = sqft ? sqft.toFixed(2) : '';
+                            const total = sqft * (parseFloat(d.boxes || 0) || 0) * (parseFloat(d.rate || 0) || 0);
+                            row.querySelector('.tiles-total').value = total ? total.toFixed(2) : '';
+                        });
+                        if (tbody.children.length === 0) this.addTilesRow(form);
+                    }
+                } else if (matName === 'granite' && graniteInputs) {
+                    graniteInputs.classList.remove('d-none');
+                    const tbody = form.querySelector('#granite-input-tbody');
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        (entry.graniteDetails || []).forEach((d, idx) => {
+                            this.addGraniteRow(form);
+                            const row = tbody.children[idx];
+                            if (!row) return;
+                            row.querySelector('.granite-name').value = d.name || '';
+                            row.querySelector('.granite-nos').value = d.nos ?? '';
+                            row.querySelector('.granite-w').value = d.w ?? '';
+                            row.querySelector('.granite-h').value = d.h ?? '';
+                            row.querySelector('.granite-rate').value = d.rate ?? '';
+                            const sqft = (parseFloat(d.w || 0) * parseFloat(d.h || 0)) || 0;
+                            row.querySelector('.granite-sqft').value = sqft ? sqft.toFixed(2) : '';
+                            const total = sqft * (parseFloat(d.nos || 0) || 0) * (parseFloat(d.rate || 0) || 0);
+                            row.querySelector('.granite-total').value = total ? total.toFixed(2) : '';
+                        });
+                        if (tbody.children.length === 0) this.addGraniteRow(form);
+                    }
+                } else {
+                    defaultInputs.classList.remove('d-none');
+                    if (form.querySelector('[name="quantity"]')) form.querySelector('[name="quantity"]').setAttribute('required', 'true');
+                    if (form.querySelector('[name="rate"]')) form.querySelector('[name="rate"]').setAttribute('required', 'true');
+                    if (form.querySelector('[name="unit"]')) form.querySelector('[name="unit"]').value = entry.unit || '';
+                    if (form.querySelector('[name="quantity"]')) form.querySelector('[name="quantity"]').value = entry.quantity ?? '';
+                    if (form.querySelector('[name="rate"]')) form.querySelector('[name="rate"]').value = entry.rate ?? '';
+                }
+
+                // Amount/due
+                if (form.querySelector('[name="amount"]')) form.querySelector('[name="amount"]').value = entry.amount ?? '';
+                if (form.querySelector('[name="due"]')) form.querySelector('[name="due"]').value = entry.due ?? '';
+                this.calculateFormTotals(form);
+                };
+                setTimeout(runMaterialEdit, 0);
+            } else {
+                // labor/service
+                if (form.querySelector('[name="wage_type"]')) form.querySelector('[name="wage_type"]').value = entry.wage_type || 'Daily';
+                if (form.querySelector('[name="item_name"]')) form.querySelector('[name="item_name"]').value = entry.item_name || '';
+                if (form.querySelector('[name="unit"]')) form.querySelector('[name="unit"]').value = entry.unit || '';
+                if (form.querySelector('[name="quantity"]')) form.querySelector('[name="quantity"]').value = entry.quantity ?? '';
+                if (form.querySelector('[name="rate"]')) form.querySelector('[name="rate"]').value = entry.rate ?? '';
+                if (form.querySelector('[name="amount"]')) form.querySelector('[name="amount"]').value = entry.amount ?? '';
+                if (form.querySelector('[name="due"]')) form.querySelector('[name="due"]').value = entry.due ?? '';
+            }
+
+            // Recalculate totals (especially when amount should be derived)
+            this.calculateFormTotals(form);
+        }, { once: true });
     },
 
     // --- Actions ---
@@ -903,6 +1356,42 @@ const App = {
             return;
         }
 
+        // Special handling for Tiles Table
+        if (materialSelect && materialSelect.value.toLowerCase() === 'tiles') {
+            let totalAmount = 0;
+            form.querySelectorAll('#tiles-input-tbody tr').forEach(row => {
+                const rowTotal = parseFloat(row.querySelector('.tiles-total').value || 0);
+                totalAmount += rowTotal;
+            });
+            
+            const amountInput = form.querySelector('[name="amount"]');
+            if (amountInput) amountInput.value = totalAmount.toFixed(2);
+            
+            // Due calculation
+            const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
+            const due = totalAmount - paid;
+            const dueInput = form.querySelector('[name="due"]');
+            if (dueInput) dueInput.value = due.toFixed(2);
+            
+            return;
+        }
+        
+        // Special handling for Granite Table
+        if (materialSelect && materialSelect.value.toLowerCase() === 'granite') {
+            let totalAmount = 0;
+            form.querySelectorAll('#granite-input-tbody tr').forEach(row => {
+                const rowTotal = parseFloat(row.querySelector('.granite-total').value || 0);
+                totalAmount += rowTotal;
+            });
+            const amountInput = form.querySelector('[name="amount"]');
+            if (amountInput) amountInput.value = totalAmount.toFixed(2);
+            const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
+            const due = totalAmount - paid;
+            const dueInput = form.querySelector('[name="due"]');
+            if (dueInput) dueInput.value = due.toFixed(2);
+            return;
+        }
+
         // Default handling
         const qty = parseFloat(form.querySelector('[name="quantity"]')?.value || 0);
         const rate = parseFloat(form.querySelector('[name="rate"]')?.value || 0);
@@ -918,7 +1407,7 @@ const App = {
         if (dueInput) dueInput.value = due;
     },
 
-    handleEntrySubmit: async function(form, modalId) {
+    handleEntrySubmit: async function(form, modalId, formKind) {
         if (!this.currentProjectId) {
             alert('Please select a project first!');
             return;
@@ -955,10 +1444,75 @@ const App = {
             entry.unit = 'Kg';
         }
 
-        // Handle File
+        // Handle Tiles Data
+        if (entry.item_name && entry.item_name.toLowerCase() === 'tiles') {
+            const tilesDetails = [];
+            form.querySelectorAll('#tiles-input-tbody tr').forEach(row => {
+                const room = row.querySelector('.tiles-room').value;
+                const boxes = parseFloat(row.querySelector('.tiles-boxes').value || 0);
+                const name = row.querySelector('.tiles-name').value;
+                const w = parseFloat(row.querySelector('.tiles-w').value || 0);
+                const h = parseFloat(row.querySelector('.tiles-h').value || 0);
+                const rate = parseFloat(row.querySelector('.tiles-rate').value || 0);
+                const total = parseFloat(row.querySelector('.tiles-total').value || 0);
+                
+                if (boxes > 0) {
+                    tilesDetails.push({
+                        room: room,
+                        boxes: boxes,
+                        name: name,
+                        w: w,
+                        h: h,
+                        rate: rate,
+                        total: total
+                    });
+                }
+            });
+            entry.tilesDetails = tilesDetails;
+            // Aggregate for list view
+            const totalBoxes = tilesDetails.reduce((sum, item) => sum + item.boxes, 0);
+            entry.quantity = totalBoxes;
+            entry.unit = 'Box';
+        }
+        
+        // Handle Granite Data
+        if (entry.item_name && entry.item_name.toLowerCase() === 'granite') {
+            const graniteDetails = [];
+            form.querySelectorAll('#granite-input-tbody tr').forEach(row => {
+                const name = row.querySelector('.granite-name').value;
+                const nos = parseFloat(row.querySelector('.granite-nos').value || 0);
+                const w = parseFloat(row.querySelector('.granite-w').value || 0);
+                const h = parseFloat(row.querySelector('.granite-h').value || 0);
+                const size = w * h;
+                // Total Sq.ft column should reflect only W×H (not multiplied by Nos)
+                const sqft = parseFloat(row.querySelector('.granite-sqft').value || size || 0);
+                const rate = parseFloat(row.querySelector('.granite-rate').value || 0);
+                const total = parseFloat(row.querySelector('.granite-total').value || (size * nos * rate) || 0);
+                if (nos > 0) {
+                    graniteDetails.push({
+                        name: name,
+                        nos: nos,
+                        w: w,
+                        h: h,
+                        size: size,
+                        sqft: sqft,
+                        rate: rate,
+                        total: total
+                    });
+                }
+            });
+            entry.graniteDetails = graniteDetails;
+            const totalSqft = graniteDetails.reduce((sum, item) => sum + (item.sqft || 0), 0);
+            entry.quantity = totalSqft;
+            entry.unit = 'Sq.ft';
+        }
+
+        // Handle File (keep existing when editing unless replaced)
         const fileInput = form.querySelector('input[type="file"]');
         if (fileInput && fileInput.files[0]) {
             entry.attachment = await this.readFileAsBase64(fileInput.files[0]);
+        } else if (this.editingEntryId && this.editingFormKind === formKind && this.editingExistingAttachment) {
+            entry.attachment = this.editingExistingAttachment;
         }
         
         // Numeric conversions
@@ -968,12 +1522,34 @@ const App = {
         if (entry.quantity) entry.quantity = parseFloat(entry.quantity);
         if (entry.rate) entry.rate = parseFloat(entry.rate);
 
-        Storage.addEntry(entry);
+        // Edit vs Add
+        if (this.editingEntryId && this.editingFormKind === formKind) {
+            const existing = Storage.getEntries().find(e => e.id === this.editingEntryId);
+            if (!existing) {
+                Storage.addEntry(entry);
+            } else {
+                // Preserve immutable / history fields
+                entry.id = existing.id;
+                entry.timestamp = existing.timestamp;
+                entry.payments = existing.payments || [];
+
+                // If payments exist, keep paid consistent with payments history
+                if (entry.type === 'cash_out' && Array.isArray(existing.payments) && existing.payments.length > 0) {
+                    entry.paid = parseFloat(existing.paid || 0);
+                    entry.due = Math.max(0, parseFloat(entry.amount || 0) - entry.paid);
+                }
+
+                Storage.updateEntry(entry);
+            }
+        } else {
+            Storage.addEntry(entry);
+        }
         
         bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
         form.reset();
+        this.clearEditState();
         this.refreshCurrentView();
-        alert('Entry added successfully');
+        alert('Entry saved successfully');
     },
 
     handleFileUpload: async function(form) {
