@@ -441,6 +441,16 @@ const App = {
                 `;
                 tbody.appendChild(tr);
             });
+            // Binding row
+            const bindingTr = document.createElement('tr');
+            bindingTr.innerHTML = `
+                <td>Binding</td>
+                <td><input type="number" class="form-control form-control-sm steel-nos calc-trigger" data-dia="binding" placeholder="No's"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm steel-kg calc-trigger" placeholder="Kg"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm steel-rate calc-trigger" placeholder="Rate"></td>
+                <td><input type="text" class="form-control form-control-sm steel-total" readonly></td>
+            `;
+            tbody.appendChild(bindingTr);
         }
     },
 
@@ -1119,8 +1129,9 @@ const App = {
                             tr.querySelector('.steel-rate').value = '';
                         });
                         (entry.stockDetails || []).forEach(d => {
-                            const dia = String(parseInt(d.diameter));
-                            const row = tbody.querySelector(`.steel-nos[data-dia="${dia}"]`)?.closest('tr');
+                            const parsed = parseInt(d.diameter);
+                            const diaKey = isNaN(parsed) ? String(d.diameter) : String(parsed);
+                            const row = tbody.querySelector(`.steel-nos[data-dia="${diaKey}"]`)?.closest('tr');
                             if (!row) return;
                             row.querySelector('.steel-nos').value = d.nos ?? '';
                             row.querySelector('.steel-kg').value = d.kg ?? '';
@@ -1180,6 +1191,8 @@ const App = {
                 }
 
                 // Amount/due
+                if (form.querySelector('[name="traveling_charge"]')) form.querySelector('[name="traveling_charge"]').value = entry.traveling_charge ?? '';
+                if (form.querySelector('[name="loading_unloading_charge"]')) form.querySelector('[name="loading_unloading_charge"]').value = entry.loading_unloading_charge ?? '';
                 if (form.querySelector('[name="amount"]')) form.querySelector('[name="amount"]').value = entry.amount ?? '';
                 if (form.querySelector('[name="due"]')) form.querySelector('[name="due"]').value = entry.due ?? '';
                 this.calculateFormTotals(form);
@@ -1333,6 +1346,8 @@ const App = {
     calculateFormTotals: function(form) {
         // Special handling for Steel Table
         const materialSelect = form.querySelector('.material-select');
+        const travel = parseFloat(form.querySelector('[name="traveling_charge"]')?.value || 0);
+        const loading = parseFloat(form.querySelector('[name="loading_unloading_charge"]')?.value || 0);
         if (materialSelect && materialSelect.value.toLowerCase() === 'steel') {
             let totalAmount = 0;
             form.querySelectorAll('#steel-input-tbody tr').forEach(row => {
@@ -1345,11 +1360,11 @@ const App = {
             });
             
             const amountInput = form.querySelector('[name="amount"]');
-            if (amountInput) amountInput.value = totalAmount.toFixed(2);
+            if (amountInput) amountInput.value = (totalAmount + travel + loading).toFixed(2);
             
             // Due calculation
             const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
-            const due = totalAmount - paid;
+            const due = (totalAmount + travel + loading) - paid;
             const dueInput = form.querySelector('[name="due"]');
             if (dueInput) dueInput.value = due.toFixed(2);
             
@@ -1365,11 +1380,11 @@ const App = {
             });
             
             const amountInput = form.querySelector('[name="amount"]');
-            if (amountInput) amountInput.value = totalAmount.toFixed(2);
+            if (amountInput) amountInput.value = (totalAmount + travel + loading).toFixed(2);
             
             // Due calculation
             const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
-            const due = totalAmount - paid;
+            const due = (totalAmount + travel + loading) - paid;
             const dueInput = form.querySelector('[name="due"]');
             if (dueInput) dueInput.value = due.toFixed(2);
             
@@ -1384,9 +1399,9 @@ const App = {
                 totalAmount += rowTotal;
             });
             const amountInput = form.querySelector('[name="amount"]');
-            if (amountInput) amountInput.value = totalAmount.toFixed(2);
+            if (amountInput) amountInput.value = (totalAmount + travel + loading).toFixed(2);
             const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
-            const due = totalAmount - paid;
+            const due = (totalAmount + travel + loading) - paid;
             const dueInput = form.querySelector('[name="due"]');
             if (dueInput) dueInput.value = due.toFixed(2);
             return;
@@ -1397,7 +1412,7 @@ const App = {
         const rate = parseFloat(form.querySelector('[name="rate"]')?.value || 0);
         const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
         
-        const total = qty * rate;
+        const total = (qty * rate) + travel + loading;
         const due = total - paid;
         
         const amountInput = form.querySelector('[name="amount"]');
