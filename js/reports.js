@@ -10,7 +10,7 @@ const Reports = {
 
     bindEvents: function() {
         // Refresh preview on filter change
-        ['report-type', 'report-start', 'report-end'].forEach(id => {
+        ['report-type', 'report-start', 'report-end', 'report-party'].forEach(id => {
             document.getElementById(id).addEventListener('change', () => this.generatePreview());
         });
         
@@ -23,8 +23,34 @@ const Reports = {
                 document.getElementById('report-start').valueAsDate = firstDay;
                 document.getElementById('report-end').valueAsDate = today;
             }
+            this.populatePartyFilter();
             this.generatePreview();
         });
+    },
+
+    populatePartyFilter: function() {
+        const select = document.getElementById('report-party');
+        if (!select) return;
+        const names = new Set();
+        const parties = Storage.getParties();
+        parties.forEach(p => {
+            if (p && p.name) names.add(p.name);
+        });
+        if (App.currentProjectId) {
+            const entries = Storage.getEntriesByProject(App.currentProjectId);
+            entries.forEach(e => {
+                if (e.party_name) names.add(e.party_name);
+            });
+        }
+        const current = select.value;
+        select.innerHTML = '<option value="">All Parties</option>';
+        Array.from(names).sort((a, b) => a.localeCompare(b)).forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = n;
+            opt.textContent = n;
+            select.appendChild(opt);
+        });
+        if (current && names.has(current)) select.value = current;
     },
 
     getFilteredData: function() {
@@ -33,6 +59,7 @@ const Reports = {
         const type = document.getElementById('report-type').value;
         const startDate = document.getElementById('report-start').value;
         const endDate = document.getElementById('report-end').value;
+        const party = document.getElementById('report-party').value;
         
         let entries = Storage.getEntriesByProject(App.currentProjectId);
 
@@ -53,6 +80,10 @@ const Reports = {
             } else if (type === 'service') {
                 entries = entries.filter(e => e.category === 'service');
             }
+        }
+
+        if (party) {
+            entries = entries.filter(e => (e.party_name || '') === party);
         }
 
         // Sort by date

@@ -295,6 +295,12 @@
                                     <label class="form-label">End Date</label>
                                     <input type="date" id="report-end" class="form-control">
                                 </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Party</label>
+                                    <select id="report-party" class="form-select">
+                                        <option value="">All Parties</option>
+                                    </select>
+                                </div>
                                 <div class="col-md-3 d-flex align-items-end gap-2">
                                     <button class="btn btn-success w-50" onclick="exportExcel()">
                                         <i class="bi bi-file-earmark-excel"></i> Excel
@@ -390,6 +396,7 @@
                                                         <th>Supplier</th>
                                                         <th>Room Name</th>
                                                         <th>No. of Box</th>
+                                                        <th>Tiles/Box</th>
                                                         <th>Tiles Name</th>
                                                         <th>Size (WxH)</th>
                                                         <th>Total Sq.ft</th>
@@ -552,7 +559,7 @@
 
     <!-- Add Cash Out Modal -->
     <div class="modal fade" id="addCashOutModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title text-danger">Add Cash Out</h5>
@@ -609,7 +616,7 @@
                                     <div class="col-12" id="material-input-container">
                                         <!-- Default Inputs -->
                                         <div class="row g-3" id="default-material-inputs">
-                                            <div class="col-md-2">
+                                            <div class="col-md-4">
                                                 <label class="form-label">Unit</label>
                                                 <select name="unit" class="form-select">
                                                     <option value="">-</option>
@@ -627,11 +634,11 @@
                                                     <option value="Set">Set</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-md-4">
                                                 <label class="form-label">Quantity</label>
                                                 <input type="number" name="quantity" class="form-control calc-trigger" step="0.01">
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-md-4">
                                                 <label class="form-label">Rate</label>
                                                 <input type="number" name="rate" class="form-control calc-trigger" step="0.01">
                                             </div>
@@ -668,9 +675,10 @@
                                                         <tr>
                                                             <th style="width: 5%">Sr.No</th>
                                                             <th>Room Name</th>
-                                                            <th style="width: 10%">No. of Box</th>
                                                             <th>Tiles Name</th>
                                                             <th style="width: 15%">Size</th>
+                                                            <th style="width: 10%">No. of Box</th>
+                                                            <th style="width: 12%">Tiles per Box</th>
                                                             <th style="width: 10%">Total Sq.ft</th>
                                                             <th style="width: 10%">Rate</th>
                                                             <th style="width: 15%">Total</th>
@@ -714,13 +722,17 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label">Travelling Charge</label>
                                         <input type="number" name="traveling_charge" class="form-control calc-trigger" step="0.01">
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Loading and Unloading Charge</label>
-                                        <input type="number" name="loading_unloading_charge" class="form-control calc-trigger" step="0.01">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Loading Charge</label>
+                                        <input type="number" name="loading_charge" class="form-control calc-trigger" step="0.01">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Unloading Charge</label>
+                                        <input type="number" name="unloading_charge" class="form-control calc-trigger" step="0.01">
                                     </div>
 
                                     <div class="col-md-6">
@@ -742,6 +754,10 @@
                                             <option value="Bank Transfer">Bank Transfer</option>
                                             <option value="UPI">UPI</option>
                                         </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Description</label>
+                                        <textarea name="description" class="form-control" rows="2" placeholder="Notes or description"></textarea>
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label">Attachment</label>
@@ -807,6 +823,10 @@
                                         <input type="number" name="due" class="form-control" readonly>
                                     </div>
                                     <div class="col-12">
+                                        <label class="form-label">Description</label>
+                                        <textarea name="description" class="form-control" rows="2" placeholder="Notes or description"></textarea>
+                                    </div>
+                                    <div class="col-12">
                                         <label class="form-label">Attachment</label>
                                         <input type="file" name="attachment" class="form-control" accept="image/*,.pdf">
                                     </div>
@@ -866,6 +886,10 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Due Amount</label>
                                         <input type="number" name="due" class="form-control" readonly>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Description</label>
+                                        <textarea name="description" class="form-control" rows="2" placeholder="Notes or description"></textarea>
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label">Attachment</label>

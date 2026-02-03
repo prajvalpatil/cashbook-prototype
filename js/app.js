@@ -343,14 +343,15 @@ const App = {
                     const w = parseFloat(row.querySelector('.tiles-w').value || 0);
                     const h = parseFloat(row.querySelector('.tiles-h').value || 0);
                     const boxes = parseFloat(row.querySelector('.tiles-boxes').value || 0);
+                    const perBox = parseFloat(row.querySelector('.tiles-per-box')?.value || 0);
                     const rate = parseFloat(row.querySelector('.tiles-rate').value || 0);
                     
                     // Auto populate total sq.ft (size W×H)
                     const totalSqFt = w * h;
                     row.querySelector('.tiles-sqft').value = totalSqFt > 0 ? totalSqFt.toFixed(2) : '';
                     
-                    // Total = Rate * No. of Box * Total Sq.ft (like Granite)
-                    const totalArea = totalSqFt * boxes;
+                    // Total = Rate * No. of Box * Tiles per Box * Total Sq.ft
+                    const totalArea = totalSqFt * boxes * perBox;
                     const total = totalArea * rate;
                     row.querySelector('.tiles-total').value = total > 0 ? total.toFixed(2) : '';
                     
@@ -472,15 +473,16 @@ const App = {
         tr.innerHTML = `
             <td class="text-center sr-no">${rowCount}</td>
             <td><input type="text" class="form-control form-control-sm tiles-room" placeholder="Room"></td>
-            <td><input type="number" class="form-control form-control-sm tiles-boxes tiles-calc-trigger" placeholder="Box"></td>
             <td><input type="text" class="form-control form-control-sm tiles-name" placeholder="Name"></td>
             <td>
                 <div class="input-group input-group-sm">
-                    <input type="number" class="form-control tiles-w tiles-calc-trigger" min=0>
+                    <input type="number" class="form-control tiles-w tiles-calc-trigger" min="0" step="0.01">
                     <span class="input-group-text">x</span>
-                    <input type="number" class="form-control tiles-h tiles-calc-trigger" min=0>
+                    <input type="number" class="form-control tiles-h tiles-calc-trigger" min="0" step="0.01">
                 </div>
             </td>
+            <td><input type="number" class="form-control form-control-sm tiles-boxes tiles-calc-trigger" placeholder="Box"></td>
+            <td><input type="number" class="form-control form-control-sm tiles-per-box tiles-calc-trigger" placeholder="Tiles per Box"></td>
             <td><input type="text" class="form-control form-control-sm tiles-sqft" readonly></td>
             <td><input type="number" step="0.01" class="form-control form-control-sm tiles-rate tiles-calc-trigger" placeholder="Rate"></td>
             <td><input type="text" class="form-control form-control-sm tiles-total" readonly></td>
@@ -512,9 +514,9 @@ const App = {
             <td><input type="number" class="form-control form-control-sm granite-nos granite-calc-trigger" placeholder="Nos"></td>
             <td>
                 <div class="input-group input-group-sm">
-                    <input type="number" class="form-control granite-w granite-calc-trigger">
+                    <input type="number" class="form-control granite-w granite-calc-trigger" step="0.01" min="0">
                     <span class="input-group-text">x</span>
-                    <input type="number" class="form-control granite-h granite-calc-trigger">
+                    <input type="number" class="form-control granite-h granite-calc-trigger" step="0.01" min="0">
                 </div>
             </td>
             <td><input type="text" class="form-control form-control-sm granite-sqft" readonly></td>
@@ -707,6 +709,7 @@ const App = {
                     <td>${item.supplier}</td>
                     <td>${item.room || '-'}</td>
                     <td>${item.boxes || 0}</td>
+                    <td>${item.tilesPerBox || 0}</td>
                     <td>${item.name || '-'}</td>
                     <td>${item.w} x ${item.h}</td>
                     <td>${totalSqFt}</td>
@@ -1149,13 +1152,14 @@ const App = {
                             if (!row) return;
                             row.querySelector('.tiles-room').value = d.room || '';
                             row.querySelector('.tiles-boxes').value = d.boxes ?? '';
+                            row.querySelector('.tiles-per-box').value = d.tilesPerBox ?? '';
                             row.querySelector('.tiles-name').value = d.name || '';
                             row.querySelector('.tiles-w').value = d.w ?? '';
                             row.querySelector('.tiles-h').value = d.h ?? '';
                             row.querySelector('.tiles-rate').value = d.rate ?? '';
                             const sqft = (parseFloat(d.w || 0) * parseFloat(d.h || 0)) || 0;
                             row.querySelector('.tiles-sqft').value = sqft ? sqft.toFixed(2) : '';
-                            const total = sqft * (parseFloat(d.boxes || 0) || 0) * (parseFloat(d.rate || 0) || 0);
+                            const total = sqft * (parseFloat(d.boxes || 0) || 0) * (parseFloat(d.tilesPerBox || 0) || 0) * (parseFloat(d.rate || 0) || 0);
                             row.querySelector('.tiles-total').value = total ? total.toFixed(2) : '';
                         });
                         if (tbody.children.length === 0) this.addTilesRow(form);
@@ -1192,9 +1196,11 @@ const App = {
 
                 // Amount/due
                 if (form.querySelector('[name="traveling_charge"]')) form.querySelector('[name="traveling_charge"]').value = entry.traveling_charge ?? '';
-                if (form.querySelector('[name="loading_unloading_charge"]')) form.querySelector('[name="loading_unloading_charge"]').value = entry.loading_unloading_charge ?? '';
+                if (form.querySelector('[name="loading_charge"]')) form.querySelector('[name="loading_charge"]').value = entry.loading_charge ?? '';
+                if (form.querySelector('[name="unloading_charge"]')) form.querySelector('[name="unloading_charge"]').value = entry.unloading_charge ?? '';
                 if (form.querySelector('[name="amount"]')) form.querySelector('[name="amount"]').value = entry.amount ?? '';
                 if (form.querySelector('[name="due"]')) form.querySelector('[name="due"]').value = entry.due ?? '';
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value = entry.description || '';
                 this.calculateFormTotals(form);
                 };
                 setTimeout(runMaterialEdit, 0);
@@ -1207,6 +1213,7 @@ const App = {
                 if (form.querySelector('[name="rate"]')) form.querySelector('[name="rate"]').value = entry.rate ?? '';
                 if (form.querySelector('[name="amount"]')) form.querySelector('[name="amount"]').value = entry.amount ?? '';
                 if (form.querySelector('[name="due"]')) form.querySelector('[name="due"]').value = entry.due ?? '';
+                if (form.querySelector('[name="description"]')) form.querySelector('[name="description"]').value = entry.description || '';
             }
 
             // Recalculate totals (especially when amount should be derived)
@@ -1347,7 +1354,9 @@ const App = {
         // Special handling for Steel Table
         const materialSelect = form.querySelector('.material-select');
         const travel = parseFloat(form.querySelector('[name="traveling_charge"]')?.value || 0);
-        const loading = parseFloat(form.querySelector('[name="loading_unloading_charge"]')?.value || 0);
+        const loading = parseFloat(form.querySelector('[name="loading_charge"]')?.value || 0);
+        const unloading = parseFloat(form.querySelector('[name="unloading_charge"]')?.value || 0);
+        const charges = travel + loading + unloading;
         if (materialSelect && materialSelect.value.toLowerCase() === 'steel') {
             let totalAmount = 0;
             form.querySelectorAll('#steel-input-tbody tr').forEach(row => {
@@ -1360,11 +1369,11 @@ const App = {
             });
             
             const amountInput = form.querySelector('[name="amount"]');
-            if (amountInput) amountInput.value = (totalAmount + travel + loading).toFixed(2);
+            if (amountInput) amountInput.value = (totalAmount + charges).toFixed(2);
             
             // Due calculation
             const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
-            const due = (totalAmount + travel + loading) - paid;
+            const due = (totalAmount + charges) - paid;
             const dueInput = form.querySelector('[name="due"]');
             if (dueInput) dueInput.value = due.toFixed(2);
             
@@ -1380,11 +1389,11 @@ const App = {
             });
             
             const amountInput = form.querySelector('[name="amount"]');
-            if (amountInput) amountInput.value = (totalAmount + travel + loading).toFixed(2);
+            if (amountInput) amountInput.value = (totalAmount + charges).toFixed(2);
             
             // Due calculation
             const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
-            const due = (totalAmount + travel + loading) - paid;
+            const due = (totalAmount + charges) - paid;
             const dueInput = form.querySelector('[name="due"]');
             if (dueInput) dueInput.value = due.toFixed(2);
             
@@ -1399,9 +1408,9 @@ const App = {
                 totalAmount += rowTotal;
             });
             const amountInput = form.querySelector('[name="amount"]');
-            if (amountInput) amountInput.value = (totalAmount + travel + loading).toFixed(2);
+            if (amountInput) amountInput.value = (totalAmount + charges).toFixed(2);
             const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
-            const due = (totalAmount + travel + loading) - paid;
+            const due = (totalAmount + charges) - paid;
             const dueInput = form.querySelector('[name="due"]');
             if (dueInput) dueInput.value = due.toFixed(2);
             return;
@@ -1412,7 +1421,7 @@ const App = {
         const rate = parseFloat(form.querySelector('[name="rate"]')?.value || 0);
         const paid = parseFloat(form.querySelector('[name="paid"]')?.value || 0);
         
-        const total = (qty * rate) + travel + loading;
+        const total = (qty * rate) + charges;
         const due = total - paid;
         
         const amountInput = form.querySelector('[name="amount"]');
@@ -1465,6 +1474,7 @@ const App = {
             form.querySelectorAll('#tiles-input-tbody tr').forEach(row => {
                 const room = row.querySelector('.tiles-room').value;
                 const boxes = parseFloat(row.querySelector('.tiles-boxes').value || 0);
+                const tilesPerBox = parseFloat(row.querySelector('.tiles-per-box')?.value || 0);
                 const name = row.querySelector('.tiles-name').value;
                 const w = parseFloat(row.querySelector('.tiles-w').value || 0);
                 const h = parseFloat(row.querySelector('.tiles-h').value || 0);
@@ -1475,6 +1485,7 @@ const App = {
                     tilesDetails.push({
                         room: room,
                         boxes: boxes,
+                        tilesPerBox: tilesPerBox,
                         name: name,
                         w: w,
                         h: h,
