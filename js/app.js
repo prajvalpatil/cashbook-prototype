@@ -9,6 +9,236 @@ const App = {
     editingEntryId: null,
     editingFormKind: null, // 'cash_in' | 'material' | 'labor' | 'service'
     editingExistingAttachment: null,
+    editingBeamId: null,
+
+    // --- Beam Steel Quantity ---
+    renderBeamSteelTable: function() {
+        const tbody = document.querySelector('#beam-steel-table tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        const diameters = [20, 16, 12, 10, 8, 6];
+        diameters.forEach((dia, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.dia = dia;
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${dia}mm</td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="bottom_straight_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="bottom_straight_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="bottom_curtail_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="bottom_curtail_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="top_straight_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="top_straight_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="top_extra_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm beam-calc" name="top_extra_nos_${dia}"></td>
+                <td class="length-ft">0.00</td>
+                <td class="length-m">0.00</td>
+                <td class="weight-kg">0.00</td>
+                <td class="no-of-bars">0.00</td>
+                <td></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // If editing, populate data
+        if (this.editingBeamId) {
+            const table = Storage.getBeamTables().find(t => t.id === this.editingBeamId);
+            if (table) {
+                document.getElementById('beam-table-title').value = table.title;
+                table.rows.forEach(rowData => {
+                    const row = tbody.querySelector(`tr[data-dia="${rowData.dia}"]`);
+                    if (row) {
+                        row.querySelector(`[name="bottom_straight_${rowData.dia}"]`).value = rowData.bottom_straight;
+                        row.querySelector(`[name="bottom_straight_nos_${rowData.dia}"]`).value = rowData.bottom_straight_nos;
+                        row.querySelector(`[name="bottom_curtail_${rowData.dia}"]`).value = rowData.bottom_curtail;
+                        row.querySelector(`[name="bottom_curtail_nos_${rowData.dia}"]`).value = rowData.bottom_curtail_nos;
+                        row.querySelector(`[name="top_straight_${rowData.dia}"]`).value = rowData.top_straight;
+                        row.querySelector(`[name="top_straight_nos_${rowData.dia}"]`).value = rowData.top_straight_nos;
+                        row.querySelector(`[name="top_extra_${rowData.dia}"]`).value = rowData.top_extra;
+                        row.querySelector(`[name="top_extra_nos_${rowData.dia}"]`).value = rowData.top_extra_nos;
+                        // Trigger calculation
+                        this.calculateBeamRow(row);
+                    }
+                });
+            }
+        }
+    },
+
+    calculateBeamRow: function(row) {
+        const dia = parseInt(row.dataset.dia);
+        const bottom_straight = parseFloat(row.querySelector(`[name="bottom_straight_${dia}"]`).value) || 0;
+        const bottom_straight_nos = parseFloat(row.querySelector(`[name="bottom_straight_nos_${dia}"]`).value) || 0;
+        const bottom_curtail = parseFloat(row.querySelector(`[name="bottom_curtail_${dia}"]`).value) || 0;
+        const bottom_curtail_nos = parseFloat(row.querySelector(`[name="bottom_curtail_nos_${dia}"]`).value) || 0;
+        const top_straight = parseFloat(row.querySelector(`[name="top_straight_${dia}"]`).value) || 0;
+        const top_straight_nos = parseFloat(row.querySelector(`[name="top_straight_nos_${dia}"]`).value) || 0;
+        const top_extra = parseFloat(row.querySelector(`[name="top_extra_${dia}"]`).value) || 0;
+        const top_extra_nos = parseFloat(row.querySelector(`[name="top_extra_nos_${dia}"]`).value) || 0;
+
+        const lengthFt = (bottom_straight * bottom_straight_nos) + (bottom_curtail * bottom_curtail_nos) + (top_straight * top_straight_nos) + (top_extra * top_extra_nos);
+        const lengthM = lengthFt / 3.28;
+        
+        // Unit weight factor based on dia
+        const unitWeights = {
+            20: 2.47,
+            16: 1.58,
+            12: 0.89,
+            10: 0.62,
+            8: 0.395,
+            6: 0.222
+        };
+        const unitWeight = unitWeights[dia] || 0; 
+        const weightKg = lengthM * unitWeight;
+        const noOfBars = lengthFt / 40;
+
+        row.querySelector('.length-ft').textContent = lengthFt.toFixed(2);
+        row.querySelector('.length-m').textContent = lengthM.toFixed(2);
+        row.querySelector('.weight-kg').textContent = weightKg.toFixed(2);
+        row.querySelector('.no-of-bars').textContent = noOfBars.toFixed(2);
+    },
+
+    handleBeamFormSubmit: function(form) {
+        if (!this.currentProjectId) {
+            alert('Please select a project first.');
+            return;
+        }
+
+        const title = form.querySelector('#beam-table-title').value;
+        if (!title) {
+            alert('Please enter a table title.');
+            return;
+        }
+
+        const tableData = [];
+        form.querySelectorAll('#beam-steel-table tbody tr').forEach(row => {
+            const dia = row.dataset.dia;
+            const rowData = {
+                dia: dia,
+                bottom_straight: row.querySelector(`[name="bottom_straight_${dia}"]`).value,
+                bottom_straight_nos: row.querySelector(`[name="bottom_straight_nos_${dia}"]`).value,
+                bottom_curtail: row.querySelector(`[name="bottom_curtail_${dia}"]`).value,
+                bottom_curtail_nos: row.querySelector(`[name="bottom_curtail_nos_${dia}"]`).value,
+                top_straight: row.querySelector(`[name="top_straight_${dia}"]`).value,
+                top_straight_nos: row.querySelector(`[name="top_straight_nos_${dia}"]`).value,
+                top_extra: row.querySelector(`[name="top_extra_${dia}"]`).value,
+                top_extra_nos: row.querySelector(`[name="top_extra_nos_${dia}"]`).value,
+                lengthFt: row.querySelector('.length-ft').textContent,
+                lengthM: row.querySelector('.length-m').textContent,
+                weightKg: row.querySelector('.weight-kg').textContent,
+                noOfBars: row.querySelector('.no-of-bars').textContent,
+            };
+            tableData.push(rowData);
+        });
+
+        const beamEntry = {
+            projectId: this.currentProjectId,
+            title: title,
+            rows: tableData
+        };
+
+        if (this.editingBeamId) {
+            beamEntry.id = this.editingBeamId;
+            Storage.updateBeamTable(beamEntry);
+        } else {
+            Storage.addBeamTable(beamEntry);
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('addBeamModal')).hide();
+        form.reset();
+        this.renderBeamTablesList();
+    },
+
+    renderBeamTablesList: function() {
+        const container = document.getElementById('beam-tables-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const tables = Storage.getBeamTablesByProject(this.currentProjectId);
+
+        tables.forEach(table => {
+        const card = document.createElement('div');
+        card.className = 'card mb-3';
+        card.id = table.id;
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">${table.title}</h5>
+                    <div>
+                        <button class="btn btn-sm btn-warning me-1" onclick="App.editBeamTable('${table.id}')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="App.deleteBeamTable('${table.id}')"><i class="bi bi-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th rowspan="2">Sr. No</th>
+                                <th rowspan="2">Dia. Of Bars</th>
+                                <th colspan="4">Bottom Steel</th>
+                                <th colspan="4">Top Steel</th>
+                                <th rowspan="2">Length (Feet)</th>
+                                <th rowspan="2">Length (Meter)</th>
+                                <th rowspan="2">Weight (kg)</th>
+                                <th rowspan="2">No. of Bars</th>
+                                <th rowspan="2">Total Qty</th>
+                            </tr>
+                            <tr>
+                                <th>Straight</th>
+                                <th>Nos.</th>
+                                <th>Curtail</th>
+                                <th>Nos.</th>
+                                <th>Straight</th>
+                                <th>Nos.</th>
+                                <th>Extra Top</th>
+                                <th>Nos.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${table.rows.map((rowData, index) => `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${rowData.dia}mm</td>
+                                    <td>${rowData.bottom_straight}</td>
+                                    <td>${rowData.bottom_straight_nos}</td>
+                                    <td>${rowData.bottom_curtail}</td>
+                                    <td>${rowData.bottom_curtail_nos}</td>
+                                    <td>${rowData.top_straight}</td>
+                                    <td>${rowData.top_straight_nos}</td>
+                                    <td>${rowData.top_extra}</td>
+                                    <td>${rowData.top_extra_nos}</td>
+                                    <td>${rowData.lengthFt}</td>
+                                    <td>${rowData.lengthM}</td>
+                                    <td>${rowData.weightKg}</td>
+                                    <td>${rowData.noOfBars}</td>
+                                    <td></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+        });
+    },
+
+    editBeamTable: function(id) {
+        this.editingBeamId = id;
+        const modal = new bootstrap.Modal(document.getElementById('addBeamModal'));
+        modal.show();
+        // The 'show.bs.modal' listener will trigger renderBeamSteelTable, 
+        // which now checks this.editingBeamId and populates data.
+    },
+
+    deleteBeamTable: function(id) {
+        if (confirm('Are you sure you want to delete this beam table?')) {
+            Storage.deleteBeamTable(id);
+            this.renderBeamTablesList();
+        }
+    },
 
     init: function() {
         this.currentUser = Storage.getCurrentUser();
@@ -347,11 +577,11 @@ const App = {
                     const rate = parseFloat(row.querySelector('.tiles-rate').value || 0);
                     
                     // Auto populate total sq.ft (size W×H)
-                    const totalSqFt = w * h;
+                    const totalSqFt = w * h * boxes * perBox;
                     row.querySelector('.tiles-sqft').value = totalSqFt > 0 ? totalSqFt.toFixed(2) : '';
                     
                     // Total = Rate * No. of Box * Tiles per Box * Total Sq.ft
-                    const totalArea = totalSqFt * boxes * perBox;
+                    const totalArea = totalSqFt;
                     const total = totalArea * rate;
                     row.querySelector('.tiles-total').value = total > 0 ? total.toFixed(2) : '';
                     
@@ -384,6 +614,33 @@ const App = {
                     this.calculateFormTotals(form);
                 }
             }
+        });
+
+        // --- Beam Steel Quantity Events ---
+        const addBeamModal = document.getElementById('addBeamModal');
+        if (addBeamModal) {
+            addBeamModal.addEventListener('show.bs.modal', () => {
+                this.renderBeamSteelTable();
+            });
+        }
+        
+        if (addBeamModal) {
+            addBeamModal.addEventListener('hidden.bs.modal', () => {
+                this.editingBeamId = null;
+                document.getElementById('beam-form').reset();
+            });
+        }
+
+        document.getElementById('beam-steel-table')?.addEventListener('input', (e) => {
+            if (e.target.classList.contains('beam-calc')) {
+                const row = e.target.closest('tr');
+                this.calculateBeamRow(row);
+            }
+        });
+
+        document.getElementById('beam-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleBeamFormSubmit(e.target);
         });
     },
 
@@ -607,6 +864,7 @@ const App = {
         if (specificPage === 'ledgers') this.renderLedgers();
         if (specificPage === 'files') this.renderFiles();
         if (specificPage === 'stocks') this.renderStocks();
+        if (specificPage === 'steel-quantity') this.renderSteelQuantity();
         // Reports are generated on demand
     },
 
@@ -759,6 +1017,25 @@ const App = {
             `;
             otherTbody.appendChild(tr);
         });
+    },
+
+    renderSteelQuantity: function() {
+        // Force UI State Synchronization for Tabs
+        const activeTab = document.querySelector('#steel-quantity-tabs .nav-link.active');
+        if (!activeTab) {
+             // No active tab? Default to Beam
+             const triggerEl = document.querySelector('#steel-quantity-tabs button[data-bs-target="#beam-steel-qty"]');
+             if (triggerEl) {
+                const tab = new bootstrap.Tab(triggerEl);
+                tab.show();
+             }
+        } else {
+            // Re-activate current tab to ensure pane visibility is synced
+            const tab = new bootstrap.Tab(activeTab);
+            tab.show();
+        }
+
+        this.renderBeamTablesList();
     },
 
     renderDashboard: function() {

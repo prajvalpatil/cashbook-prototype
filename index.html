@@ -109,6 +109,11 @@
                                     <i class="bi bi-boxes me-2"></i> Stocks
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-page="steel-quantity">
+                                    <i class="bi bi-grid-3x3-gap me-2"></i> Steel Qunatity
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </nav>
@@ -467,6 +472,45 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Steel Quantity View -->
+                    <div id="view-steel-quantity" class="content-view d-none">
+                        <ul class="nav nav-tabs" id="steel-quantity-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="beam-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#beam-steel-qty" type="button" role="tab" aria-controls="beam-steel-qty" aria-selected="true">BEAM STEEL QTY.</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="slab-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#slab-steel-qty" type="button" role="tab" aria-controls="slab-steel-qty" aria-selected="false">SLAB STEEL QTY.</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="column-and-footing-jali-tab" data-bs-toggle="tab" data-bs-target="#column-and-footing-jali" type="button" role="tab" aria-controls="column-and-footing-jali" aria-selected="false">Column And footing Jali</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="footing-jali-tab" data-bs-toggle="tab" data-bs-target="#footing-jali" type="button" role="tab" aria-controls="footing-jali" aria-selected="false">Footing Jali</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="steel-quantity-tab-content">
+                            <div class="tab-pane fade show active" id="beam-steel-qty" role="tabpanel" aria-labelledby="beam-steel-qty-tab">
+                                <div class="d-flex justify-content-end mb-3 mt-3">
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBeamModal">
+                                        <i class="bi bi-plus-lg"></i> Add Beam
+                                    </button>
+                                </div>
+                                <div id="beam-tables-container">
+                                    <!-- Saved beam tables will be appended here -->
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="slab-steel-qty" role="tabpanel" aria-labelledby="slab-steel-qty-tab">
+                                <!-- Content for SLAB STEEL QTY. tab -->
+                            </div>
+                            <div class="tab-pane fade" id="column-and-footing-jali" role="tabpanel" aria-labelledby="column-and-footing-jali-tab">
+                                <!-- Content for Column And footing Jali tab -->
+                            </div>
+                            <div class="tab-pane fade" id="footing-jali" role="tabpanel" aria-labelledby="footing-jali-tab">
+                                <!-- Content for Footing Jali tab -->
                             </div>
                         </div>
                     </div>
@@ -986,6 +1030,57 @@
                             <input type="file" name="file" class="form-control" required>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Upload</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Beam Modal -->
+    <div class="modal fade" id="addBeamModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Beam Steel Quantity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="beam-form">
+                        <div class="mb-3">
+                            <label class="form-label">Table Title</label>
+                            <input type="text" id="beam-table-title" class="form-control" placeholder="e.g., Beam No. 1 / GB1" required>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="beam-steel-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th rowspan="2">Sr. No</th>
+                                        <th rowspan="2">Dia. Of Bars</th>
+                                        <th colspan="4">Bottom Steel</th>
+                                        <th colspan="4">Top Steel</th>
+                                        <th rowspan="2">Length (Feet)</th>
+                                        <th rowspan="2">Length (Meter)</th>
+                                        <th rowspan="2">Weight (kg)</th>
+                                        <th rowspan="2">No. of Bars</th>
+                                        <th rowspan="2">Total Qty</th>
+                                    </tr>
+                                    <tr>
+                                        <th>Straight</th>
+                                        <th>Nos.</th>
+                                        <th>Curtail</th>
+                                        <th>Nos.</th>
+                                        <th>Straight</th>
+                                        <th>Nos.</th>
+                                        <th>Extra Top</th>
+                                        <th>Nos.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows will be dynamically inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Save Beam</button>
                     </form>
                 </div>
             </div>

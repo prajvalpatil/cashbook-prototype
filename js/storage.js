@@ -10,7 +10,8 @@ const DB_KEYS = {
     FILES: 'cashbook_files',
     PARTIES: 'cashbook_parties',
     MATERIALS: 'cashbook_materials',
-    SESSION: 'cashbook_session'
+    SESSION: 'cashbook_session',
+    BEAM_TABLES: 'cashbook_beam_tables'
 };
 
 const Storage = {
@@ -40,6 +41,9 @@ const Storage = {
         }
         if (!localStorage.getItem(DB_KEYS.FILES)) {
             localStorage.setItem(DB_KEYS.FILES, JSON.stringify([]));
+        }
+        if (!localStorage.getItem(DB_KEYS.BEAM_TABLES)) {
+            localStorage.setItem(DB_KEYS.BEAM_TABLES, JSON.stringify([]));
         }
     },
 
@@ -245,6 +249,39 @@ const Storage = {
             localStorage.setItem(DB_KEYS.MATERIALS, JSON.stringify(materials));
         }
         return name;
+    },
+
+    // --- Beam Tables ---
+    getBeamTables: function() {
+        return JSON.parse(localStorage.getItem(DB_KEYS.BEAM_TABLES) || '[]');
+    },
+
+    getBeamTablesByProject: function(projectId) {
+        return this.getBeamTables().filter(t => t.projectId === projectId);
+    },
+
+    addBeamTable: function(table) {
+        const tables = this.getBeamTables();
+        table.id = 'beam_' + Date.now();
+        table.updatedAt = new Date().toISOString();
+        tables.push(table);
+        localStorage.setItem(DB_KEYS.BEAM_TABLES, JSON.stringify(tables));
+        return table;
+    },
+
+    updateBeamTable: function(updatedTable) {
+        let tables = this.getBeamTables();
+        const index = tables.findIndex(t => t.id === updatedTable.id);
+        if (index !== -1) {
+            tables[index] = updatedTable;
+            localStorage.setItem(DB_KEYS.BEAM_TABLES, JSON.stringify(tables));
+        }
+    },
+
+    deleteBeamTable: function(id) {
+        let tables = this.getBeamTables();
+        tables = tables.filter(t => t.id !== id);
+        localStorage.setItem(DB_KEYS.BEAM_TABLES, JSON.stringify(tables));
     }
 };
 
