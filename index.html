@@ -491,6 +491,12 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="footing-jali-tab" data-bs-toggle="tab" data-bs-target="#footing-jali" type="button" role="tab" aria-controls="footing-jali" aria-selected="false">Footing Jali</button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="total-overall-steel-tab" data-bs-toggle="tab" data-bs-target="#total-overall-steel" type="button" role="tab" aria-controls="total-overall-steel" aria-selected="false">Total overall steel</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="total-footing-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#total-footing-steel-qty" type="button" role="tab" aria-controls="total-footing-steel-qty" aria-selected="false">Total Footing Steel Qty.</button>
+                            </li>
                         </ul>
                         <div class="tab-content" id="steel-quantity-tab-content">
                             <div class="tab-pane fade show active" id="beam-steel-qty" role="tabpanel" aria-labelledby="beam-steel-qty-tab">
@@ -504,13 +510,34 @@
                                 </div>
                             </div>
                             <div class="tab-pane fade" id="slab-steel-qty" role="tabpanel" aria-labelledby="slab-steel-qty-tab">
-                                <!-- Content for SLAB STEEL QTY. tab -->
+                                <div class="d-flex justify-content-end mb-3 mt-3">
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSlabModal">
+                                        <i class="bi bi-plus-lg"></i> Add Slab
+                                    </button>
+                                </div>
+                                <div id="slab-tables-container"></div>
                             </div>
                             <div class="tab-pane fade" id="column-and-footing-jali" role="tabpanel" aria-labelledby="column-and-footing-jali-tab">
-                                <!-- Content for Column And footing Jali tab -->
+                                <div class="d-flex justify-content-end mb-3 mt-3">
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addColumnModal">
+                                        <i class="bi bi-plus-lg"></i> Add Column And Footing Jali
+                                    </button>
+                                </div>
+                                <div id="column-tables-container"></div>
                             </div>
                             <div class="tab-pane fade" id="footing-jali" role="tabpanel" aria-labelledby="footing-jali-tab">
-                                <!-- Content for Footing Jali tab -->
+                                <div class="d-flex justify-content-end mb-3 mt-3">
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFootingModal">
+                                        <i class="bi bi-plus-lg"></i> Add Footing Jali
+                                    </button>
+                                </div>
+                                <div id="footing-tables-container"></div>
+                            </div>
+                            <div class="tab-pane fade" id="total-overall-steel" role="tabpanel" aria-labelledby="total-overall-steel-tab">
+                                <!-- Content for Total overall steel -->
+                            </div>
+                            <div class="tab-pane fade" id="total-footing-steel-qty" role="tabpanel" aria-labelledby="total-footing-steel-qty-tab">
+                                <!-- Content for Total Footing Steel Qty. -->
                             </div>
                         </div>
                     </div>
@@ -1081,6 +1108,148 @@
                             </table>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 mt-3">Save Beam</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Slab Modal -->
+    <div class="modal fade" id="addSlabModal" tabindex="-1">
+        <div class="modal-dialog modal-xl" style="max-width: 95vw;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Slab Steel Quantity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="slab-form">
+                        <div class="mb-3">
+                            <label class="form-label">Table Title</label>
+                            <input type="text" id="slab-table-title" class="form-control" placeholder="e.g., Kitchen Slab" required>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" id="slab-steel-table" style="font-size: 0.85rem;">
+                                <thead class="table-light text-center align-middle">
+                                    <tr>
+                                        <th rowspan="2">Sr. No</th>
+                                        <th rowspan="2">Dia. Of Bars</th>
+                                        <th colspan="6">One way slab</th>
+                                        <th colspan="6">Two way slab</th>
+                                        <th rowspan="2">Length (Feet)</th>
+                                        <th rowspan="2">Length (Meter)</th>
+                                        <th rowspan="2">Weight (kg)</th>
+                                        <th rowspan="2">No. of Bars</th>
+                                        <th rowspan="2">Total Qty</th>
+                                        <th rowspan="2">Remark</th>
+                                    </tr>
+                                    <tr>
+                                        <th>Main Bar</th>
+                                        <th>Nos</th>
+                                        <th>Dist. Bar</th>
+                                        <th>Nos.</th>
+                                        <th>Extra top</th>
+                                        <th>Nos.</th>
+                                        <th>Main Bar</th>
+                                        <th>Nos</th>
+                                        <th>Dist. Bar</th>
+                                        <th>Nos.</th>
+                                        <th>Extra top</th>
+                                        <th>Nos.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows will be dynamically inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Save Slab</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Column Modal -->
+    <div class="modal fade" id="addColumnModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Column and Footing Jali</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="column-form">
+                        <div class="mb-3">
+                            <label class="form-label">Table Title</label>
+                            <input type="text" id="column-table-title" class="form-control" placeholder="e.g., Column / Stair case" required>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" id="column-steel-table">
+                                <thead class="table-light text-center align-middle">
+                                    <tr>
+                                        <th>Sr. No</th>
+                                        <th>Dia. Of Bars</th>
+                                        <th>Size of columns</th>
+                                        <th>No. of columns</th>
+                                        <th>Total length</th>
+                                        <th>Nos.</th>
+                                        <th>Length (Feet)</th>
+                                        <th>Length (Meter)</th>
+                                        <th>Weight (kg)</th>
+                                        <th>No of Bar(F)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows will be dynamically inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Footing Jali Modal -->
+    <div class="modal fade" id="addFootingModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Footing Jali</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="footing-form">
+                        <div class="mb-3">
+                            <label class="form-label">Table Title</label>
+                            <input type="text" id="footing-table-title" class="form-control" placeholder="e.g., Footing Jali (Column No .1)" required>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" id="footing-steel-table">
+                                <thead class="table-light text-center align-middle">
+                                    <tr>
+                                        <th>Sr. No</th>
+                                        <th>Dia. Of Bars</th>
+                                        <th>X-Axis</th>
+                                        <th>Nos.</th>
+                                        <th>Y-Axis</th>
+                                        <th>Nos.</th>
+                                        <th>Total Length in feet</th>
+                                        <th>No. Of Footing jali</th>
+                                        <th>length in feet</th>
+                                        <th>length in meter</th>
+                                        <th>weight (kg)</th>
+                                        <th>No. of Bars</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows will be dynamically inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Save</button>
                     </form>
                 </div>
             </div>

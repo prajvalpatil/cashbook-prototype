@@ -11,7 +11,10 @@ const DB_KEYS = {
     PARTIES: 'cashbook_parties',
     MATERIALS: 'cashbook_materials',
     SESSION: 'cashbook_session',
-    BEAM_TABLES: 'cashbook_beam_tables'
+    BEAM_TABLES: 'cashbook_beam_tables',
+    SLAB_TABLES: 'cashbook_slab_tables',
+    COLUMN_TABLES: 'cashbook_column_tables',
+    FOOTING_TABLES: 'cashbook_footing_tables'
 };
 
 const Storage = {
@@ -44,6 +47,15 @@ const Storage = {
         }
         if (!localStorage.getItem(DB_KEYS.BEAM_TABLES)) {
             localStorage.setItem(DB_KEYS.BEAM_TABLES, JSON.stringify([]));
+        }
+        if (!localStorage.getItem(DB_KEYS.SLAB_TABLES)) {
+            localStorage.setItem(DB_KEYS.SLAB_TABLES, JSON.stringify([]));
+        }
+        if (!localStorage.getItem(DB_KEYS.COLUMN_TABLES)) {
+            localStorage.setItem(DB_KEYS.COLUMN_TABLES, JSON.stringify([]));
+        }
+        if (!localStorage.getItem(DB_KEYS.FOOTING_TABLES)) {
+            localStorage.setItem(DB_KEYS.FOOTING_TABLES, JSON.stringify([]));
         }
     },
 
@@ -282,6 +294,105 @@ const Storage = {
         let tables = this.getBeamTables();
         tables = tables.filter(t => t.id !== id);
         localStorage.setItem(DB_KEYS.BEAM_TABLES, JSON.stringify(tables));
+    },
+
+    // --- Slab Tables ---
+    getSlabTables: function() {
+        return JSON.parse(localStorage.getItem(DB_KEYS.SLAB_TABLES) || '[]');
+    },
+
+    getSlabTablesByProject: function(projectId) {
+        return this.getSlabTables().filter(t => t.projectId === projectId);
+    },
+
+    addSlabTable: function(table) {
+        const tables = this.getSlabTables();
+        table.id = 'slab_' + Date.now();
+        table.updatedAt = new Date().toISOString();
+        tables.push(table);
+        localStorage.setItem(DB_KEYS.SLAB_TABLES, JSON.stringify(tables));
+        return table;
+    },
+
+    updateSlabTable: function(updatedTable) {
+        let tables = this.getSlabTables();
+        const index = tables.findIndex(t => t.id === updatedTable.id);
+        if (index !== -1) {
+            tables[index] = updatedTable;
+            localStorage.setItem(DB_KEYS.SLAB_TABLES, JSON.stringify(tables));
+        }
+    },
+
+    deleteSlabTable: function(id) {
+        let tables = this.getSlabTables();
+        tables = tables.filter(t => t.id !== id);
+        localStorage.setItem(DB_KEYS.SLAB_TABLES, JSON.stringify(tables));
+    },
+
+    // --- Column Tables ---
+    getColumnTables: function() {
+        return JSON.parse(localStorage.getItem(DB_KEYS.COLUMN_TABLES) || '[]');
+    },
+
+    getColumnTablesByProject: function(projectId) {
+        return this.getColumnTables().filter(t => t.projectId === projectId);
+    },
+
+    addColumnTable: function(table) {
+        const tables = this.getColumnTables();
+        table.id = 'col_' + Date.now();
+        table.updatedAt = new Date().toISOString();
+        tables.push(table);
+        localStorage.setItem(DB_KEYS.COLUMN_TABLES, JSON.stringify(tables));
+        return table;
+    },
+
+    updateColumnTable: function(updatedTable) {
+        let tables = this.getColumnTables();
+        const index = tables.findIndex(t => t.id === updatedTable.id);
+        if (index !== -1) {
+            tables[index] = updatedTable;
+            localStorage.setItem(DB_KEYS.COLUMN_TABLES, JSON.stringify(tables));
+        }
+    },
+
+    deleteColumnTable: function(id) {
+        let tables = this.getColumnTables();
+        tables = tables.filter(t => t.id !== id);
+        localStorage.setItem(DB_KEYS.COLUMN_TABLES, JSON.stringify(tables));
+    },
+
+    // --- Footing Tables ---
+    getFootingTables: function() {
+        return JSON.parse(localStorage.getItem(DB_KEYS.FOOTING_TABLES) || '[]');
+    },
+
+    getFootingTablesByProject: function(projectId) {
+        return this.getFootingTables().filter(t => t.projectId === projectId);
+    },
+
+    addFootingTable: function(table) {
+        const tables = this.getFootingTables();
+        table.id = 'footing_' + Date.now();
+        table.updatedAt = new Date().toISOString();
+        tables.push(table);
+        localStorage.setItem(DB_KEYS.FOOTING_TABLES, JSON.stringify(tables));
+        return table;
+    },
+
+    updateFootingTable: function(updatedTable) {
+        let tables = this.getFootingTables();
+        const index = tables.findIndex(t => t.id === updatedTable.id);
+        if (index !== -1) {
+            tables[index] = updatedTable;
+            localStorage.setItem(DB_KEYS.FOOTING_TABLES, JSON.stringify(tables));
+        }
+    },
+
+    deleteFootingTable: function(id) {
+        let tables = this.getFootingTables();
+        tables = tables.filter(t => t.id !== id);
+        localStorage.setItem(DB_KEYS.FOOTING_TABLES, JSON.stringify(tables));
     }
 };
 

@@ -10,6 +10,9 @@ const App = {
     editingFormKind: null, // 'cash_in' | 'material' | 'labor' | 'service'
     editingExistingAttachment: null,
     editingBeamId: null,
+    editingSlabId: null,
+    editingColumnId: null,
+    editingFootingId: null,
 
     // --- Beam Steel Quantity ---
     renderBeamSteelTable: function() {
@@ -237,6 +240,657 @@ const App = {
         if (confirm('Are you sure you want to delete this beam table?')) {
             Storage.deleteBeamTable(id);
             this.renderBeamTablesList();
+        }
+    },
+
+    // --- Slab Steel Quantity ---
+    renderSlabSteelTable: function() {
+        const tbody = document.querySelector('#slab-steel-table tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        const diameters = [20, 16, 12, 10, 8, 6];
+        diameters.forEach((dia, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.dia = dia;
+            tr.innerHTML = `
+                <td class="text-center">${index + 1}</td>
+                <td class="text-center fw-bold">${dia}mm</td>
+                <!-- One Way -->
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="one_main_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="one_main_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="one_dist_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="one_dist_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="one_extra_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="one_extra_nos_${dia}"></td>
+                <!-- Two Way -->
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="two_main_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="two_main_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="two_dist_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="two_dist_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="two_extra_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm slab-calc" name="two_extra_nos_${dia}"></td>
+                
+                <td class="length-ft text-end">0.00</td>
+                <td class="length-m text-end">0.00</td>
+                <td class="weight-kg text-end">0.00</td>
+                <td class="no-of-bars text-end">0.00</td>
+                <td></td>
+                <td><input type="text" class="form-control form-control-sm" name="remark_${dia}"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // If editing, populate data
+        if (this.editingSlabId) {
+            const table = Storage.getSlabTables().find(t => t.id === this.editingSlabId);
+            if (table) {
+                document.getElementById('slab-table-title').value = table.title;
+                table.rows.forEach(rowData => {
+                    const row = tbody.querySelector(`tr[data-dia="${rowData.dia}"]`);
+                    if (row) {
+                        // Populate inputs
+                        const fields = [
+                            'one_main', 'one_main_nos', 'one_dist', 'one_dist_nos', 'one_extra', 'one_extra_nos',
+                            'two_main', 'two_main_nos', 'two_dist', 'two_dist_nos', 'two_extra', 'two_extra_nos'
+                        ];
+                        fields.forEach(f => {
+                            const input = row.querySelector(`[name="${f}_${rowData.dia}"]`);
+                            if (input) input.value = rowData[f] || '';
+                        });
+                        const remark = row.querySelector(`[name="remark_${rowData.dia}"]`);
+                        if (remark) remark.value = rowData.remark || '';
+                        
+                        this.calculateSlabRow(row);
+                    }
+                });
+            }
+        }
+    },
+
+    calculateSlabRow: function(row) {
+        const dia = parseInt(row.dataset.dia);
+        
+        // Helper to get value
+        const getVal = (name) => parseFloat(row.querySelector(`[name="${name}_${dia}"]`).value) || 0;
+
+        const one_main = getVal('one_main');
+        const one_main_nos = getVal('one_main_nos');
+        const one_dist = getVal('one_dist');
+        const one_dist_nos = getVal('one_dist_nos');
+        const one_extra = getVal('one_extra');
+        const one_extra_nos = getVal('one_extra_nos');
+
+        const two_main = getVal('two_main');
+        const two_main_nos = getVal('two_main_nos');
+        const two_dist = getVal('two_dist');
+        const two_dist_nos = getVal('two_dist_nos');
+        const two_extra = getVal('two_extra');
+        const two_extra_nos = getVal('two_extra_nos');
+
+        const lengthFt = (one_main * one_main_nos) + (one_dist * one_dist_nos) + (one_extra * one_extra_nos) +
+                         (two_main * two_main_nos) + (two_dist * two_dist_nos) + (two_extra * two_extra_nos);
+        
+        const lengthM = lengthFt / 3.28;
+
+        const unitWeights = {
+            20: 2.47,
+            16: 1.58,
+            12: 0.89,
+            10: 0.61, // Specific for Slab as requested
+            8: 0.395,
+            6: 0.222
+        };
+        const unitWeight = unitWeights[dia] || 0;
+        const weightKg = lengthM * unitWeight;
+        const noOfBars = lengthFt / 40;
+
+        row.querySelector('.length-ft').textContent = lengthFt.toFixed(2);
+        row.querySelector('.length-m').textContent = lengthM.toFixed(2);
+        row.querySelector('.weight-kg').textContent = weightKg.toFixed(2);
+        row.querySelector('.no-of-bars').textContent = noOfBars.toFixed(2);
+    },
+
+    handleSlabFormSubmit: function(form) {
+        if (!this.currentProjectId) {
+            alert('Please select a project first.');
+            return;
+        }
+        const title = form.querySelector('#slab-table-title').value;
+        if (!title) {
+            alert('Please enter a table title.');
+            return;
+        }
+
+        const tableData = [];
+        form.querySelectorAll('#slab-steel-table tbody tr').forEach(row => {
+            const dia = row.dataset.dia;
+            const rowData = {
+                dia: dia,
+                remark: row.querySelector(`[name="remark_${dia}"]`).value,
+                lengthFt: row.querySelector('.length-ft').textContent,
+                lengthM: row.querySelector('.length-m').textContent,
+                weightKg: row.querySelector('.weight-kg').textContent,
+                noOfBars: row.querySelector('.no-of-bars').textContent
+            };
+            // Collect inputs
+            const fields = [
+                'one_main', 'one_main_nos', 'one_dist', 'one_dist_nos', 'one_extra', 'one_extra_nos',
+                'two_main', 'two_main_nos', 'two_dist', 'two_dist_nos', 'two_extra', 'two_extra_nos'
+            ];
+            fields.forEach(f => {
+                rowData[f] = row.querySelector(`[name="${f}_${dia}"]`).value;
+            });
+            tableData.push(rowData);
+        });
+
+        const slabEntry = {
+            projectId: this.currentProjectId,
+            title: title,
+            rows: tableData
+        };
+
+        if (this.editingSlabId) {
+            slabEntry.id = this.editingSlabId;
+            Storage.updateSlabTable(slabEntry);
+        } else {
+            Storage.addSlabTable(slabEntry);
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('addSlabModal')).hide();
+        form.reset();
+        this.renderSlabTablesList();
+    },
+
+    renderSlabTablesList: function() {
+        const container = document.getElementById('slab-tables-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const tables = Storage.getSlabTablesByProject(this.currentProjectId);
+
+        tables.forEach(table => {
+            const card = document.createElement('div');
+            card.className = 'card mb-3';
+            card.id = table.id;
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">${table.title}</h5>
+                        <div>
+                            <button class="btn btn-sm btn-warning me-1" onclick="App.editSlabTable('${table.id}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="App.deleteSlabTable('${table.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm" style="font-size: 0.85rem;">
+                            <thead class="table-light text-center align-middle">
+                                <tr>
+                                    <th rowspan="2">Sr. No</th>
+                                    <th rowspan="2">Dia. Of Bars</th>
+                                    <th colspan="6">One way slab</th>
+                                    <th colspan="6">Two way slab</th>
+                                    <th rowspan="2">Length (Feet)</th>
+                                    <th rowspan="2">Length (Meter)</th>
+                                    <th rowspan="2">Weight (kg)</th>
+                                    <th rowspan="2">No. of Bars</th>
+                                    <th rowspan="2">Total Qty</th>
+                                    <th rowspan="2">Remark</th>
+                                </tr>
+                                <tr>
+                                    <th>Main Bar</th>
+                                    <th>Nos</th>
+                                    <th>Dist. Bar</th>
+                                    <th>Nos.</th>
+                                    <th>Extra top</th>
+                                    <th>Nos.</th>
+                                    <th>Main Bar</th>
+                                    <th>Nos</th>
+                                    <th>Dist. Bar</th>
+                                    <th>Nos.</th>
+                                    <th>Extra top</th>
+                                    <th>Nos.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${table.rows.map((r, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td class="fw-bold">${r.dia}mm</td>
+                                        <td>${r.one_main || ''}</td>
+                                        <td>${r.one_main_nos || ''}</td>
+                                        <td>${r.one_dist || ''}</td>
+                                        <td>${r.one_dist_nos || ''}</td>
+                                        <td>${r.one_extra || ''}</td>
+                                        <td>${r.one_extra_nos || ''}</td>
+                                        <td>${r.two_main || ''}</td>
+                                        <td>${r.two_main_nos || ''}</td>
+                                        <td>${r.two_dist || ''}</td>
+                                        <td>${r.two_dist_nos || ''}</td>
+                                        <td>${r.two_extra || ''}</td>
+                                        <td>${r.two_extra_nos || ''}</td>
+                                        <td>${r.lengthFt}</td>
+                                        <td>${r.lengthM}</td>
+                                        <td>${r.weightKg}</td>
+                                        <td>${r.noOfBars}</td>
+                                        <td></td>
+                                        <td>${r.remark || ''}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    },
+
+    editSlabTable: function(id) {
+        this.editingSlabId = id;
+        const modal = new bootstrap.Modal(document.getElementById('addSlabModal'));
+        modal.show();
+    },
+
+    deleteSlabTable: function(id) {
+        if (confirm('Are you sure you want to delete this slab table?')) {
+            Storage.deleteSlabTable(id);
+            this.renderSlabTablesList();
+        }
+    },
+
+    // --- Column and Footing Jali ---
+    renderColumnSteelTable: function() {
+        const tbody = document.querySelector('#column-steel-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const diameters = [20, 16, 12, 10, 8, 6];
+        diameters.forEach((dia, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.dia = dia;
+            tr.innerHTML = `
+                <td class="text-center">${index + 1}</td>
+                <td class="text-center fw-bold">${dia}mm</td>
+                <td><input type="text" class="form-control form-control-sm column-calc" name="size_col_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm column-calc" name="no_col_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm column-calc" name="total_len_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm column-calc" name="nos_${dia}"></td>
+                <td class="length-ft text-end">0.00</td>
+                <td class="length-m text-end">0.00</td>
+                <td class="weight-kg text-end">0.00</td>
+                <td class="no-of-bars text-end">0.00</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        if (this.editingColumnId) {
+            const table = Storage.getColumnTables().find(t => t.id === this.editingColumnId);
+            if (table) {
+                document.getElementById('column-table-title').value = table.title;
+                table.rows.forEach(r => {
+                    const row = tbody.querySelector(`tr[data-dia="${r.dia}"]`);
+                    if (row) {
+                        row.querySelector(`[name="size_col_${r.dia}"]`).value = r.size_col || '';
+                        row.querySelector(`[name="no_col_${r.dia}"]`).value = r.no_col || '';
+                        row.querySelector(`[name="total_len_${r.dia}"]`).value = r.total_len || '';
+                        row.querySelector(`[name="nos_${r.dia}"]`).value = r.nos || '';
+                        this.calculateColumnRow(row);
+                    }
+                });
+            }
+        }
+    },
+
+    calculateColumnRow: function(row) {
+        const dia = parseInt(row.dataset.dia);
+        const no_col = parseFloat(row.querySelector(`[name="no_col_${dia}"]`).value) || 0;
+        const total_len = parseFloat(row.querySelector(`[name="total_len_${dia}"]`).value) || 0;
+        const nos = parseFloat(row.querySelector(`[name="nos_${dia}"]`).value) || 0;
+        
+        const lengthFt = no_col * total_len * nos;
+        const lengthM = lengthFt / 3.28;
+        
+        const unitWeights = {
+            20: 2.47,
+            16: 1.58,
+            12: 0.89,
+            10: 0.61,
+            8: 0.395,
+            6: 0.222
+        };
+        const unitWeight = unitWeights[dia] || 0;
+        const weightKg = lengthM * unitWeight;
+        const noOfBars = lengthFt / 40;
+        
+        row.querySelector('.length-ft').textContent = lengthFt.toFixed(2);
+        row.querySelector('.length-m').textContent = lengthM.toFixed(2);
+        row.querySelector('.weight-kg').textContent = weightKg.toFixed(2);
+        row.querySelector('.no-of-bars').textContent = noOfBars.toFixed(2);
+    },
+
+    handleColumnFormSubmit: function(form) {
+        if (!this.currentProjectId) {
+            alert('Please select a project first.');
+            return;
+        }
+        const title = form.querySelector('#column-table-title').value;
+        if (!title) {
+            alert('Please enter a table title.');
+            return;
+        }
+        
+        const tableData = [];
+        form.querySelectorAll('#column-steel-table tbody tr').forEach(row => {
+            const dia = row.dataset.dia;
+            const rowData = {
+                dia: dia,
+                size_col: row.querySelector(`[name="size_col_${dia}"]`).value,
+                no_col: row.querySelector(`[name="no_col_${dia}"]`).value,
+                total_len: row.querySelector(`[name="total_len_${dia}"]`).value,
+                nos: row.querySelector(`[name="nos_${dia}"]`).value,
+                lengthFt: row.querySelector('.length-ft').textContent,
+                lengthM: row.querySelector('.length-m').textContent,
+                weightKg: row.querySelector('.weight-kg').textContent,
+                noOfBars: row.querySelector('.no-of-bars').textContent
+            };
+            tableData.push(rowData);
+        });
+        
+        const entry = {
+            projectId: this.currentProjectId,
+            title: title,
+            rows: tableData
+        };
+        
+        if (this.editingColumnId) {
+            entry.id = this.editingColumnId;
+            Storage.updateColumnTable(entry);
+        } else {
+            Storage.addColumnTable(entry);
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('addColumnModal')).hide();
+        form.reset();
+        this.renderColumnTablesList();
+    },
+
+    renderColumnTablesList: function() {
+        const container = document.getElementById('column-tables-container');
+        if (!container) return;
+        container.innerHTML = '';
+        const tables = Storage.getColumnTablesByProject(this.currentProjectId);
+        
+        tables.forEach(table => {
+            const card = document.createElement('div');
+            card.className = 'card mb-3';
+            card.id = table.id;
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">${table.title}</h5>
+                        <div>
+                            <button class="btn btn-sm btn-warning me-1" onclick="App.editColumnTable('${table.id}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="App.deleteColumnTable('${table.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm" style="font-size: 0.85rem;">
+                            <thead class="table-light text-center align-middle">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>Size of columns</th>
+                                    <th>No. of columns</th>
+                                    <th>Total length</th>
+                                    <th>Nos.</th>
+                                    <th>Length (Feet)</th>
+                                    <th>Length (Meter)</th>
+                                    <th>Weight (kg)</th>
+                                    <th>No of Bar(F)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${table.rows.map((r, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td class="fw-bold">${r.dia}mm</td>
+                                        <td>${r.size_col || ''}</td>
+                                        <td>${r.no_col || ''}</td>
+                                        <td>${r.total_len || ''}</td>
+                                        <td>${r.nos || ''}</td>
+                                        <td>${r.lengthFt}</td>
+                                        <td>${r.lengthM}</td>
+                                        <td>${r.weightKg}</td>
+                                        <td>${r.noOfBars}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    },
+
+    editColumnTable: function(id) {
+        this.editingColumnId = id;
+        const modal = new bootstrap.Modal(document.getElementById('addColumnModal'));
+        modal.show();
+    },
+
+    deleteColumnTable: function(id) {
+        if (confirm('Are you sure you want to delete this table?')) {
+            Storage.deleteColumnTable(id);
+            this.renderColumnTablesList();
+        }
+    },
+
+    // --- Footing Jali ---
+    renderFootingSteelTable: function() {
+        const tbody = document.querySelector('#footing-steel-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const diameters = [20, 16, 12, 10, 8, 6];
+        diameters.forEach((dia, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.dia = dia;
+            tr.innerHTML = `
+                <td class="text-center">${index + 1}</td>
+                <td class="text-center fw-bold">${dia}mm</td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm footing-calc" name="x_axis_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm footing-calc" name="x_nos_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm footing-calc" name="y_axis_${dia}"></td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm footing-calc" name="y_nos_${dia}"></td>
+                <td class="total-length-ft text-end">0.00</td>
+                <td><input type="number" step="0.01" class="form-control form-control-sm footing-calc" name="no_footing_${dia}"></td>
+                <td class="length-ft text-end">0.00</td>
+                <td class="length-m text-end">0.00</td>
+                <td class="weight-kg text-end">0.00</td>
+                <td class="no-of-bars text-end">0.00</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        if (this.editingFootingId) {
+            const table = Storage.getFootingTables().find(t => t.id === this.editingFootingId);
+            if (table) {
+                document.getElementById('footing-table-title').value = table.title;
+                table.rows.forEach(r => {
+                    const row = tbody.querySelector(`tr[data-dia="${r.dia}"]`);
+                    if (row) {
+                        row.querySelector(`[name="x_axis_${r.dia}"]`).value = r.x_axis || '';
+                        row.querySelector(`[name="x_nos_${r.dia}"]`).value = r.x_nos || '';
+                        row.querySelector(`[name="y_axis_${r.dia}"]`).value = r.y_axis || '';
+                        row.querySelector(`[name="y_nos_${r.dia}"]`).value = r.y_nos || '';
+                        row.querySelector(`[name="no_footing_${r.dia}"]`).value = r.no_footing || '';
+                        this.calculateFootingRow(row);
+                    }
+                });
+            }
+        }
+    },
+
+    calculateFootingRow: function(row) {
+        const dia = parseInt(row.dataset.dia);
+        const getVal = (name) => parseFloat(row.querySelector(`[name="${name}_${dia}"]`).value) || 0;
+
+        const x_axis = getVal('x_axis');
+        const x_nos = getVal('x_nos');
+        const y_axis = getVal('y_axis');
+        const y_nos = getVal('y_nos');
+        const no_footing = getVal('no_footing');
+
+        const totalLengthFt = (x_axis * x_nos) + (y_axis * y_nos);
+        const lengthFt = totalLengthFt * no_footing;
+        const lengthM = lengthFt / 3.28;
+        
+        const unitWeights = {
+            20: 2.47,
+            16: 1.58,
+            12: 0.89,
+            10: 0.61,
+            8: 0.395,
+            6: 0.222
+        };
+        const unitWeight = unitWeights[dia] || 0;
+        const weightKg = lengthM * unitWeight;
+        const noOfBars = lengthFt / 40;
+        
+        row.querySelector('.total-length-ft').textContent = totalLengthFt.toFixed(2);
+        row.querySelector('.length-ft').textContent = lengthFt.toFixed(2);
+        row.querySelector('.length-m').textContent = lengthM.toFixed(2);
+        row.querySelector('.weight-kg').textContent = weightKg.toFixed(2);
+        row.querySelector('.no-of-bars').textContent = noOfBars.toFixed(2);
+    },
+
+    handleFootingFormSubmit: function(form) {
+        if (!this.currentProjectId) {
+            alert('Please select a project first.');
+            return;
+        }
+        const title = form.querySelector('#footing-table-title').value;
+        if (!title) {
+            alert('Please enter a table title.');
+            return;
+        }
+        
+        const tableData = [];
+        form.querySelectorAll('#footing-steel-table tbody tr').forEach(row => {
+            const dia = row.dataset.dia;
+            const rowData = {
+                dia: dia,
+                x_axis: row.querySelector(`[name="x_axis_${dia}"]`).value,
+                x_nos: row.querySelector(`[name="x_nos_${dia}"]`).value,
+                y_axis: row.querySelector(`[name="y_axis_${dia}"]`).value,
+                y_nos: row.querySelector(`[name="y_nos_${dia}"]`).value,
+                no_footing: row.querySelector(`[name="no_footing_${dia}"]`).value,
+                totalLengthFt: row.querySelector('.total-length-ft').textContent,
+                lengthFt: row.querySelector('.length-ft').textContent,
+                lengthM: row.querySelector('.length-m').textContent,
+                weightKg: row.querySelector('.weight-kg').textContent,
+                noOfBars: row.querySelector('.no-of-bars').textContent
+            };
+            tableData.push(rowData);
+        });
+        
+        const entry = {
+            projectId: this.currentProjectId,
+            title: title,
+            rows: tableData
+        };
+        
+        if (this.editingFootingId) {
+            entry.id = this.editingFootingId;
+            Storage.updateFootingTable(entry);
+        } else {
+            Storage.addFootingTable(entry);
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('addFootingModal')).hide();
+        form.reset();
+        this.renderFootingTablesList();
+    },
+
+    renderFootingTablesList: function() {
+        const container = document.getElementById('footing-tables-container');
+        if (!container) return;
+        container.innerHTML = '';
+        const tables = Storage.getFootingTablesByProject(this.currentProjectId);
+        
+        tables.forEach(table => {
+            const card = document.createElement('div');
+            card.className = 'card mb-3';
+            card.id = table.id;
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">${table.title}</h5>
+                        <div>
+                            <button class="btn btn-sm btn-warning me-1" onclick="App.editFootingTable('${table.id}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="App.deleteFootingTable('${table.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm" style="font-size: 0.85rem;">
+                            <thead class="table-light text-center align-middle">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>X-Axis</th>
+                                    <th>Nos.</th>
+                                    <th>Y-Axis</th>
+                                    <th>Nos.</th>
+                                    <th>Total Length in feet</th>
+                                    <th>No. Of Footing jali</th>
+                                    <th>length in feet</th>
+                                    <th>length in meter</th>
+                                    <th>weight (kg)</th>
+                                    <th>No. of Bars</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${table.rows.map((r, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td class="fw-bold">${r.dia}mm</td>
+                                        <td>${r.x_axis || ''}</td>
+                                        <td>${r.x_nos || ''}</td>
+                                        <td>${r.y_axis || ''}</td>
+                                        <td>${r.y_nos || ''}</td>
+                                        <td>${r.totalLengthFt}</td>
+                                        <td>${r.no_footing || ''}</td>
+                                        <td>${r.lengthFt}</td>
+                                        <td>${r.lengthM}</td>
+                                        <td>${r.weightKg}</td>
+                                        <td>${r.noOfBars}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    },
+
+    editFootingTable: function(id) {
+        this.editingFootingId = id;
+        const modal = new bootstrap.Modal(document.getElementById('addFootingModal'));
+        modal.show();
+    },
+
+    deleteFootingTable: function(id) {
+        if (confirm('Are you sure you want to delete this table?')) {
+            Storage.deleteFootingTable(id);
+            this.renderFootingTablesList();
         }
     },
 
@@ -642,6 +1296,63 @@ const App = {
             e.preventDefault();
             this.handleBeamFormSubmit(e.target);
         });
+
+        // --- Slab Steel Quantity Events ---
+        const addSlabModal = document.getElementById('addSlabModal');
+        if (addSlabModal) {
+            addSlabModal.addEventListener('show.bs.modal', () => this.renderSlabSteelTable());
+            addSlabModal.addEventListener('hidden.bs.modal', () => {
+                this.editingSlabId = null;
+                document.getElementById('slab-form').reset();
+            });
+        }
+        document.getElementById('slab-steel-table')?.addEventListener('input', (e) => {
+            if (e.target.classList.contains('slab-calc')) {
+                this.calculateSlabRow(e.target.closest('tr'));
+            }
+        });
+        document.getElementById('slab-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleSlabFormSubmit(e.target);
+        });
+
+        // --- Column Steel Quantity Events ---
+        const addColumnModal = document.getElementById('addColumnModal');
+        if (addColumnModal) {
+            addColumnModal.addEventListener('show.bs.modal', () => this.renderColumnSteelTable());
+            addColumnModal.addEventListener('hidden.bs.modal', () => {
+                this.editingColumnId = null;
+                document.getElementById('column-form').reset();
+            });
+        }
+        document.getElementById('column-steel-table')?.addEventListener('input', (e) => {
+            if (e.target.classList.contains('column-calc')) {
+                this.calculateColumnRow(e.target.closest('tr'));
+            }
+        });
+        document.getElementById('column-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleColumnFormSubmit(e.target);
+        });
+
+        // --- Footing Jali Events ---
+        const addFootingModal = document.getElementById('addFootingModal');
+        if (addFootingModal) {
+            addFootingModal.addEventListener('show.bs.modal', () => this.renderFootingSteelTable());
+            addFootingModal.addEventListener('hidden.bs.modal', () => {
+                this.editingFootingId = null;
+                document.getElementById('footing-form').reset();
+            });
+        }
+        document.getElementById('footing-steel-table')?.addEventListener('input', (e) => {
+            if (e.target.classList.contains('footing-calc')) {
+                this.calculateFootingRow(e.target.closest('tr'));
+            }
+        });
+        document.getElementById('footing-form')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleFootingFormSubmit(e.target);
+        });
     },
 
     updatePartyDropdowns: function() {
@@ -1036,6 +1747,9 @@ const App = {
         }
 
         this.renderBeamTablesList();
+        this.renderSlabTablesList();
+        this.renderColumnTablesList();
+        this.renderFootingTablesList();
     },
 
     renderDashboard: function() {
