@@ -6,6 +6,7 @@
 const App = {
     currentUser: null,
     currentProjectId: null,
+    currentFolderId: null,
     editingEntryId: null,
     editingFormKind: null, // 'cash_in' | 'material' | 'labor' | 'service'
     editingExistingAttachment: null,
@@ -136,6 +137,7 @@ const App = {
 
         const beamEntry = {
             projectId: this.currentProjectId,
+            folderId: this.currentFolderId,
             title: title,
             rows: tableData
         };
@@ -150,6 +152,7 @@ const App = {
         bootstrap.Modal.getInstance(document.getElementById('addBeamModal')).hide();
         form.reset();
         this.renderBeamTablesList();
+        this.renderTotalOverallSteel();
     },
 
     renderBeamTablesList: function() {
@@ -157,7 +160,8 @@ const App = {
         if (!container) return;
         container.innerHTML = '';
 
-        const tables = Storage.getBeamTablesByProject(this.currentProjectId);
+        const tables = Storage.getBeamTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
 
         tables.forEach(table => {
         const card = document.createElement('div');
@@ -240,6 +244,7 @@ const App = {
         if (confirm('Are you sure you want to delete this beam table?')) {
             Storage.deleteBeamTable(id);
             this.renderBeamTablesList();
+            this.renderTotalOverallSteel();
         }
     },
 
@@ -386,6 +391,7 @@ const App = {
 
         const slabEntry = {
             projectId: this.currentProjectId,
+            folderId: this.currentFolderId,
             title: title,
             rows: tableData
         };
@@ -400,6 +406,7 @@ const App = {
         bootstrap.Modal.getInstance(document.getElementById('addSlabModal')).hide();
         form.reset();
         this.renderSlabTablesList();
+        this.renderTotalOverallSteel();
     },
 
     renderSlabTablesList: function() {
@@ -407,7 +414,8 @@ const App = {
         if (!container) return;
         container.innerHTML = '';
 
-        const tables = Storage.getSlabTablesByProject(this.currentProjectId);
+        const tables = Storage.getSlabTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
 
         tables.forEach(table => {
             const card = document.createElement('div');
@@ -498,6 +506,7 @@ const App = {
         if (confirm('Are you sure you want to delete this slab table?')) {
             Storage.deleteSlabTable(id);
             this.renderSlabTablesList();
+            this.renderTotalOverallSteel();
         }
     },
 
@@ -600,6 +609,7 @@ const App = {
         
         const entry = {
             projectId: this.currentProjectId,
+            folderId: this.currentFolderId,
             title: title,
             rows: tableData
         };
@@ -614,13 +624,15 @@ const App = {
         bootstrap.Modal.getInstance(document.getElementById('addColumnModal')).hide();
         form.reset();
         this.renderColumnTablesList();
+        this.renderTotalFootingSteel();
     },
 
     renderColumnTablesList: function() {
         const container = document.getElementById('column-tables-container');
         if (!container) return;
         container.innerHTML = '';
-        const tables = Storage.getColumnTablesByProject(this.currentProjectId);
+        const tables = Storage.getColumnTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
         
         tables.forEach(table => {
             const card = document.createElement('div');
@@ -687,6 +699,7 @@ const App = {
         if (confirm('Are you sure you want to delete this table?')) {
             Storage.deleteColumnTable(id);
             this.renderColumnTablesList();
+            this.renderTotalFootingSteel();
         }
     },
 
@@ -800,6 +813,7 @@ const App = {
         
         const entry = {
             projectId: this.currentProjectId,
+            folderId: this.currentFolderId,
             title: title,
             rows: tableData
         };
@@ -814,13 +828,15 @@ const App = {
         bootstrap.Modal.getInstance(document.getElementById('addFootingModal')).hide();
         form.reset();
         this.renderFootingTablesList();
+        this.renderTotalFootingSteel();
     },
 
     renderFootingTablesList: function() {
         const container = document.getElementById('footing-tables-container');
         if (!container) return;
         container.innerHTML = '';
-        const tables = Storage.getFootingTablesByProject(this.currentProjectId);
+        const tables = Storage.getFootingTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
         
         tables.forEach(table => {
             const card = document.createElement('div');
@@ -891,6 +907,7 @@ const App = {
         if (confirm('Are you sure you want to delete this table?')) {
             Storage.deleteFootingTable(id);
             this.renderFootingTablesList();
+            this.renderTotalFootingSteel();
         }
     },
 
@@ -972,6 +989,7 @@ const App = {
         // Project Selection
         document.getElementById('global-project-select').addEventListener('change', (e) => {
             this.currentProjectId = e.target.value;
+            this.currentFolderId = null; // Reset folder on project change
             this.refreshCurrentView();
         });
 
@@ -1353,6 +1371,20 @@ const App = {
             e.preventDefault();
             this.handleFootingFormSubmit(e.target);
         });
+
+        // --- Folder Events ---
+        document.getElementById('create-folder-btn')?.addEventListener('click', () => {
+            this.createFolder();
+        });
+        
+        document.getElementById('back-to-folders-btn')?.addEventListener('click', () => {
+            this.currentFolderId = null;
+            this.renderSteelQuantity();
+        });
+
+        // --- Cashbook Search/Filter ---
+        document.getElementById('cashbook-search')?.addEventListener('input', () => this.renderCashbook());
+        document.getElementById('cashbook-filter-type')?.addEventListener('change', () => this.renderCashbook());
     },
 
     updatePartyDropdowns: function() {
@@ -1579,6 +1611,110 @@ const App = {
         // Reports are generated on demand
     },
 
+    // --- Folder Logic ---
+    renderFoldersList: function() {
+        const container = document.getElementById('folders-list');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // Auto-migrate existing tables to a "Default" folder if they have no folderId
+        this.migrateOrphanTables();
+
+        const folders = Storage.getFoldersByProject(this.currentProjectId);
+
+        if (folders.length === 0) {
+            container.innerHTML = '<div class="col-12 text-center text-muted py-4">No folders yet. Create one to start adding steel quantities.</div>';
+            return;
+        }
+
+        folders.forEach(f => {
+            const col = document.createElement('div');
+            col.className = 'col-md-3 col-sm-6';
+            col.innerHTML = `
+                <div class="card h-100 shadow-sm cursor-pointer folder-card" onclick="App.openFolder('${f.id}')">
+                    <div class="card-body text-center">
+                        <i class="bi bi-folder-fill fs-1 text-warning mb-2"></i>
+                        <h5 class="card-title text-truncate">${f.name}</h5>
+                        <small class="text-muted">Created: ${new Date(f.createdAt).toLocaleDateString()}</small>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); App.editFolder('${f.id}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); App.deleteFolder('${f.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(col);
+        });
+    },
+
+    migrateOrphanTables: function() {
+        // Check if there are any tables for this project without a folderId
+        const beamTables = Storage.getBeamTablesByProject(this.currentProjectId).filter(t => !t.folderId);
+        const slabTables = Storage.getSlabTablesByProject(this.currentProjectId).filter(t => !t.folderId);
+        const colTables = Storage.getColumnTablesByProject(this.currentProjectId).filter(t => !t.folderId);
+        const footTables = Storage.getFootingTablesByProject(this.currentProjectId).filter(t => !t.folderId);
+
+        if (beamTables.length > 0 || slabTables.length > 0 || colTables.length > 0 || footTables.length > 0) {
+            // Create a default folder
+            const defaultFolder = Storage.addFolder({
+                projectId: this.currentProjectId,
+                name: 'Default / Migrated'
+            });
+
+            // Update all orphans
+            const update = (tables, updateFn) => {
+                tables.forEach(t => {
+                    t.folderId = defaultFolder.id;
+                    updateFn(t);
+                });
+            };
+
+            update(beamTables, (t) => Storage.updateBeamTable(t));
+            update(slabTables, (t) => Storage.updateSlabTable(t));
+            update(colTables, (t) => Storage.updateColumnTable(t));
+            update(footTables, (t) => Storage.updateFootingTable(t));
+        }
+    },
+
+    createFolder: function() {
+        const input = document.getElementById('new-folder-name');
+        const name = input.value.trim();
+        if (!name) {
+            alert('Please enter a folder name');
+            return;
+        }
+        Storage.addFolder({
+            projectId: this.currentProjectId,
+            name: name
+        });
+        input.value = '';
+        this.renderFoldersList();
+    },
+
+    editFolder: function(folderId) {
+        const folder = Storage.getFolders().find(f => f.id === folderId);
+        if (!folder) return;
+        
+        const newName = prompt("Enter new folder name:", folder.name);
+        if (newName && newName.trim()) {
+            folder.name = newName.trim();
+            Storage.updateFolder(folder);
+            this.renderFoldersList();
+        }
+    },
+
+    openFolder: function(folderId) {
+        this.currentFolderId = folderId;
+        this.renderSteelQuantity();
+    },
+
+    deleteFolder: function(folderId) {
+        if (confirm('Are you sure you want to delete this folder? All tables inside it will be hidden/lost.')) {
+            Storage.deleteFolder(folderId);
+            this.renderFoldersList();
+        }
+    },
+
     // --- Render Functions ---
 
     renderStocks: function() {
@@ -1731,6 +1867,26 @@ const App = {
     },
 
     renderSteelQuantity: function() {
+        const foldersSection = document.getElementById('steel-folders-section');
+        const contentSection = document.getElementById('steel-content-section');
+
+        if (!this.currentFolderId) {
+            // Show Folders List
+            if (foldersSection) foldersSection.classList.remove('d-none');
+            if (contentSection) contentSection.classList.add('d-none');
+            this.renderFoldersList();
+        } else {
+            // Show Content (Tabs)
+            if (foldersSection) foldersSection.classList.add('d-none');
+            if (contentSection) contentSection.classList.remove('d-none');
+
+            // Update Title
+            const folder = Storage.getFolders().find(f => f.id === this.currentFolderId);
+            if (folder) {
+                const titleEl = document.getElementById('current-folder-title');
+                if (titleEl) titleEl.textContent = folder.name;
+            }
+
         // Force UI State Synchronization for Tabs
         const activeTab = document.querySelector('#steel-quantity-tabs .nav-link.active');
         if (!activeTab) {
@@ -1750,6 +1906,389 @@ const App = {
         this.renderSlabTablesList();
         this.renderColumnTablesList();
         this.renderFootingTablesList();
+        this.renderTotalOverallSteel();
+        this.renderTotalFootingSteel();
+        }
+    },
+
+    renderTotalOverallSteel: function() {
+        const container = document.getElementById('total-overall-steel');
+        if (!container) return;
+
+        // --- BEAMS CALCULATION ---
+        const beamTables = Storage.getBeamTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
+
+        const diameters = [20, 16, 12, 10, 8, 6];
+        const beamTotals = {};
+        diameters.forEach(d => beamTotals[d] = 0);
+
+        beamTables.forEach(table => {
+            if (table.rows) {
+                table.rows.forEach(row => {
+                    const dia = parseInt(row.dia);
+                    const len = parseFloat(row.lengthFt) || 0;
+                    if (beamTotals[dia] !== undefined) {
+                        beamTotals[dia] += len;
+                    }
+                });
+            }
+        });
+
+        // --- SLABS CALCULATION ---
+        const slabTables = Storage.getSlabTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
+        
+        const slabTotals = {};
+        diameters.forEach(d => slabTotals[d] = 0);
+
+        slabTables.forEach(table => {
+            if (table.rows) {
+                table.rows.forEach(row => {
+                    const dia = parseInt(row.dia);
+                    const len = parseFloat(row.lengthFt) || 0;
+                    if (slabTotals[dia] !== undefined) {
+                        slabTotals[dia] += len;
+                    }
+                });
+            }
+        });
+
+        const unitWeights = { 20: 2.47, 16: 1.58, 12: 0.89, 10: 0.61, 8: 0.395, 6: 0.222 };
+
+        const getRowValues = (l_ft, dia) => {
+            const wastage = l_ft * 0.10;
+            const total_ft_wastage = l_ft + wastage;
+            const l_m = l_ft / 3.28;
+            const weight = l_m * (unitWeights[dia] || 0);
+            const no_bars = l_ft / 40;
+            return { wastage, total_ft_wastage, l_m, weight, no_bars };
+        };
+
+        const generateRows = (totals) => {
+            let html = '';
+            let totalWeightSum = 0;
+            diameters.forEach((dia, index) => {
+                const l_ft = totals[dia];
+                const v = getRowValues(l_ft, dia);
+                totalWeightSum += v.weight;
+
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="fw-bold">${dia}mm</td>
+                        <td>${l_ft.toFixed(2)}</td>
+                        <td>${v.wastage.toFixed(2)}</td>
+                        <td>${v.total_ft_wastage.toFixed(2)}</td>
+                        <td>${v.l_m.toFixed(2)}</td>
+                        <td>${v.weight.toFixed(2)}</td>
+                        <td>${v.no_bars.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            html += `
+                <tr class="table-secondary fw-bold">
+                    <td colspan="6" class="text-end">Total Steel Weight (kg)</td>
+                    <td>${totalWeightSum.toFixed(2)}</td>
+                    <td></td>
+                </tr>
+            `;
+            return html;
+        };
+
+        const beamRowsHtml = generateRows(beamTotals);
+        const slabRowsHtml = generateRows(slabTotals);
+
+        let combinedRowsHtml = '';
+        let grandTotalWeight = 0;
+
+        diameters.forEach((dia, index) => {
+            const beamV = getRowValues(beamTotals[dia], dia);
+            const slabV = getRowValues(slabTotals[dia], dia);
+            
+            const totalBars = beamV.no_bars + slabV.no_bars;
+            const totalWeight = beamV.weight + slabV.weight;
+            grandTotalWeight += totalWeight;
+
+            combinedRowsHtml += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="fw-bold">${dia}mm</td>
+                    <td>${totalBars.toFixed(2)}</td>
+                    <td>${totalWeight.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        combinedRowsHtml += `
+            <tr class="table-dark fw-bold">
+                <td colspan="3" class="text-end">Total Steel Weight (kg)</td>
+                <td>${grandTotalWeight.toFixed(2)}</td>
+            </tr>
+        `;
+
+        container.innerHTML = `
+            <div class="card mt-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Total Overall Steel (Beams)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>Length in feet</th>
+                                    <th>Wastage (10%)</th>
+                                    <th>Total (ft + wastage)</th>
+                                    <th>Length in meter</th>
+                                    <th>Total Weight (kg)</th>
+                                    <th>No of Bars</th>
+                                </tr>
+                            </thead>
+                            <tbody>${beamRowsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Total Overall Steel (Slabs)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>Length in feet</th>
+                                    <th>Wastage (10%)</th>
+                                    <th>Total (ft + wastage)</th>
+                                    <th>Length in meter</th>
+                                    <th>Total Weight (kg)</th>
+                                    <th>No of Bars</th>
+                                </tr>
+                            </thead>
+                            <tbody>${slabRowsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Total Required Steel (Overall)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>Total no of Bars</th>
+                                    <th>Total Weight (kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody>${combinedRowsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    renderTotalFootingSteel: function() {
+        const container = document.getElementById('total-footing-steel-qty');
+        if (!container) return;
+
+        // --- COLUMNS CALCULATION ---
+        const columnTables = Storage.getColumnTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
+
+        const diameters = [20, 16, 12, 10, 8, 6];
+        const columnTotals = {};
+        diameters.forEach(d => columnTotals[d] = 0);
+
+        columnTables.forEach(table => {
+            if (table.rows) {
+                table.rows.forEach(row => {
+                    const dia = parseInt(row.dia);
+                    const len = parseFloat(row.lengthFt) || 0;
+                    if (columnTotals[dia] !== undefined) {
+                        columnTotals[dia] += len;
+                    }
+                });
+            }
+        });
+
+        // --- FOOTINGS CALCULATION ---
+        const footingTables = Storage.getFootingTablesByProject(this.currentProjectId)
+            .filter(t => t.folderId === this.currentFolderId);
+        
+        const footingTotals = {};
+        diameters.forEach(d => footingTotals[d] = 0);
+
+        footingTables.forEach(table => {
+            if (table.rows) {
+                table.rows.forEach(row => {
+                    const dia = parseInt(row.dia);
+                    const len = parseFloat(row.lengthFt) || 0;
+                    if (footingTotals[dia] !== undefined) {
+                        footingTotals[dia] += len;
+                    }
+                });
+            }
+        });
+
+        const unitWeights = { 20: 2.47, 16: 1.58, 12: 0.89, 10: 0.61, 8: 0.395, 6: 0.222 };
+
+        const getRowValues = (l_ft, dia) => {
+            const wastage = l_ft * 0.10;
+            const total_ft_wastage = l_ft + wastage;
+            const l_m = l_ft / 3.28;
+            const weight = l_m * (unitWeights[dia] || 0);
+            const no_bars = l_ft / 40;
+            return { wastage, total_ft_wastage, l_m, weight, no_bars };
+        };
+
+        const generateRows = (totals) => {
+            let html = '';
+            let totalWeightSum = 0;
+            diameters.forEach((dia, index) => {
+                const l_ft = totals[dia];
+                const v = getRowValues(l_ft, dia);
+                totalWeightSum += v.weight;
+
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="fw-bold">${dia}mm</td>
+                        <td>${l_ft.toFixed(2)}</td>
+                        <td>${v.wastage.toFixed(2)}</td>
+                        <td>${v.total_ft_wastage.toFixed(2)}</td>
+                        <td>${v.l_m.toFixed(2)}</td>
+                        <td>${v.weight.toFixed(2)}</td>
+                        <td>${v.no_bars.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            html += `
+                <tr class="table-secondary fw-bold">
+                    <td colspan="6" class="text-end">Total Steel Weight (kg)</td>
+                    <td>${totalWeightSum.toFixed(2)}</td>
+                    <td></td>
+                </tr>
+            `;
+            return html;
+        };
+
+        const columnRowsHtml = generateRows(columnTotals);
+        const footingRowsHtml = generateRows(footingTotals);
+
+        let combinedRowsHtml = '';
+        let grandTotalWeight = 0;
+
+        diameters.forEach((dia, index) => {
+            const colV = getRowValues(columnTotals[dia], dia);
+            const footV = getRowValues(footingTotals[dia], dia);
+            
+            const totalBars = colV.no_bars + footV.no_bars;
+            const totalWeight = colV.weight + footV.weight;
+            grandTotalWeight += totalWeight;
+
+            combinedRowsHtml += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="fw-bold">${dia}mm</td>
+                    <td>${totalBars.toFixed(2)}</td>
+                    <td>${totalWeight.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        combinedRowsHtml += `
+            <tr class="table-dark fw-bold">
+                <td colspan="3" class="text-end">Total Steel Weight (kg)</td>
+                <td>${grandTotalWeight.toFixed(2)}</td>
+            </tr>
+        `;
+
+        container.innerHTML = `
+            <div class="card mt-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Total Column And Footing Steel</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>Length in feet</th>
+                                    <th>Wastage (10%)</th>
+                                    <th>Total (ft + wastage)</th>
+                                    <th>Length in meter</th>
+                                    <th>Total Weight (kg)</th>
+                                    <th>No of Bars</th>
+                                </tr>
+                            </thead>
+                            <tbody>${columnRowsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Total Footing jali steel</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>Length in feet</th>
+                                    <th>Wastage (10%)</th>
+                                    <th>Total (ft + wastage)</th>
+                                    <th>Length in meter</th>
+                                    <th>Total Weight (kg)</th>
+                                    <th>No of Bars</th>
+                                </tr>
+                            </thead>
+                            <tbody>${footingRowsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Total Over all Required Steel</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sr. No</th>
+                                    <th>Dia. Of Bars</th>
+                                    <th>Total no of Bars</th>
+                                    <th>Total Weight (kg)</th>
+                                </tr>
+                            </thead>
+                            <tbody>${combinedRowsHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
     },
 
     renderDashboard: function() {
@@ -1824,7 +2363,23 @@ const App = {
 
     renderCashbook: function() {
         if (!this.currentProjectId) return;
-        const entries = Storage.getEntriesByProject(this.currentProjectId);
+        let entries = Storage.getEntriesByProject(this.currentProjectId);
+        
+        // Filter
+        const searchTerm = document.getElementById('cashbook-search')?.value.toLowerCase().trim();
+        const filterType = document.getElementById('cashbook-filter-type')?.value;
+
+        if (filterType && filterType !== 'all') {
+            entries = entries.filter(e => e.type === filterType);
+        }
+
+        if (searchTerm) {
+            entries = entries.filter(e => {
+                const text = [e.party_name, e.category, e.item_name, e.notes, e.description, e.payment_mode].filter(Boolean).join(' ').toLowerCase();
+                return text.includes(searchTerm);
+            });
+        }
+
         // Sort by date desc
         entries.sort((a, b) => new Date(b.date) - new Date(a.date));
         

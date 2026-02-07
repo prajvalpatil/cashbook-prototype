@@ -111,7 +111,7 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="#" data-page="steel-quantity">
-                                    <i class="bi bi-grid-3x3-gap me-2"></i> Steel Qunatity
+                                    <i class="bi bi-grid-3x3-gap me-2"></i> Steel Quantity
                                 </a>
                             </li>
                         </ul>
@@ -203,13 +203,26 @@
 
                     <!-- Cashbook View -->
                     <div id="view-cashbook" class="content-view d-none">
-                        <div class="d-flex gap-2 mb-3">
-                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCashInModal">
-                                <i class="bi bi-arrow-down-circle"></i> Cash In
-                            </button>
-                            <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#addCashOutModal">
-                                <i class="bi bi-arrow-up-circle"></i> Cash Out
-                            </button>
+                        <div class="row mb-3 g-2 align-items-center">
+                            <div class="col-md-5 d-flex gap-2">
+                                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCashInModal">
+                                    <i class="bi bi-arrow-down-circle"></i> Cash In
+                                </button>
+                                <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#addCashOutModal">
+                                    <i class="bi bi-arrow-up-circle"></i> Cash Out
+                                </button>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="input-group">
+                                    <select class="form-select" id="cashbook-filter-type" style="max-width: 130px;">
+                                        <option value="all">All Types</option>
+                                        <option value="cash_in">Cash In</option>
+                                        <option value="cash_out">Cash Out</option>
+                                    </select>
+                                    <input type="text" class="form-control" id="cashbook-search" placeholder="Search category and details column">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="card">
@@ -478,66 +491,94 @@
 
                     <!-- Steel Quantity View -->
                     <div id="view-steel-quantity" class="content-view d-none">
-                        <ul class="nav nav-tabs" id="steel-quantity-tabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="beam-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#beam-steel-qty" type="button" role="tab" aria-controls="beam-steel-qty" aria-selected="true">BEAM STEEL QTY.</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="slab-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#slab-steel-qty" type="button" role="tab" aria-controls="slab-steel-qty" aria-selected="false">SLAB STEEL QTY.</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="column-and-footing-jali-tab" data-bs-toggle="tab" data-bs-target="#column-and-footing-jali" type="button" role="tab" aria-controls="column-and-footing-jali" aria-selected="false">Column And footing Jali</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="footing-jali-tab" data-bs-toggle="tab" data-bs-target="#footing-jali" type="button" role="tab" aria-controls="footing-jali" aria-selected="false">Footing Jali</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="total-overall-steel-tab" data-bs-toggle="tab" data-bs-target="#total-overall-steel" type="button" role="tab" aria-controls="total-overall-steel" aria-selected="false">Total overall steel</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="total-footing-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#total-footing-steel-qty" type="button" role="tab" aria-controls="total-footing-steel-qty" aria-selected="false">Total Footing Steel Qty.</button>
-                            </li>
-                        </ul>
-                        <div class="tab-content" id="steel-quantity-tab-content">
-                            <div class="tab-pane fade show active" id="beam-steel-qty" role="tabpanel" aria-labelledby="beam-steel-qty-tab">
-                                <div class="d-flex justify-content-end mb-3 mt-3">
-                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBeamModal">
-                                        <i class="bi bi-plus-lg"></i> Add Beam
-                                    </button>
-                                </div>
-                                <div id="beam-tables-container">
-                                    <!-- Saved beam tables will be appended here -->
+                        <!-- Folders Section -->
+                        <div id="steel-folders-section">
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Create New Folder</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-folder-plus"></i></span>
+                                        <input type="text" id="new-folder-name" class="form-control" placeholder="Enter folder name">
+                                        <button class="btn btn-primary" id="create-folder-btn">Create</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="tab-pane fade" id="slab-steel-qty" role="tabpanel" aria-labelledby="slab-steel-qty-tab">
-                                <div class="d-flex justify-content-end mb-3 mt-3">
-                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSlabModal">
-                                        <i class="bi bi-plus-lg"></i> Add Slab
-                                    </button>
+                            <h5 class="mb-3">Folders</h5>
+                            <div class="row g-3" id="folders-list">
+                                <!-- Folders injected here -->
+                            </div>
+                        </div>
+
+                        <!-- Content Section (Tabs) -->
+                        <div id="steel-content-section" class="d-none">
+                            <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                                <button class="btn btn-outline-secondary btn-sm me-3" id="back-to-folders-btn">
+                                    <i class="bi bi-arrow-left"></i> Back to Folders
+                                </button>
+                                <h4 class="mb-0 text-primary"><i class="bi bi-folder2-open me-2"></i><span id="current-folder-title">Folder Name</span></h4>
+                            </div>
+
+                            <ul class="nav nav-tabs" id="steel-quantity-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="beam-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#beam-steel-qty" type="button" role="tab" aria-controls="beam-steel-qty" aria-selected="true">BEAM STEEL QTY.</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="slab-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#slab-steel-qty" type="button" role="tab" aria-controls="slab-steel-qty" aria-selected="false">SLAB STEEL QTY.</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="total-overall-steel-tab" data-bs-toggle="tab" data-bs-target="#total-overall-steel" type="button" role="tab" aria-controls="total-overall-steel" aria-selected="false">Total overall steel</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="column-and-footing-jali-tab" data-bs-toggle="tab" data-bs-target="#column-and-footing-jali" type="button" role="tab" aria-controls="column-and-footing-jali" aria-selected="false">Column And footing Jali</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="footing-jali-tab" data-bs-toggle="tab" data-bs-target="#footing-jali" type="button" role="tab" aria-controls="footing-jali" aria-selected="false">Footing Jali</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="total-footing-steel-qty-tab" data-bs-toggle="tab" data-bs-target="#total-footing-steel-qty" type="button" role="tab" aria-controls="total-footing-steel-qty" aria-selected="false">Total Footing Steel Qty.</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content" id="steel-quantity-tab-content">
+                                <div class="tab-pane fade show active" id="beam-steel-qty" role="tabpanel" aria-labelledby="beam-steel-qty-tab">
+                                    <div class="d-flex justify-content-end mb-3 mt-3">
+                                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBeamModal">
+                                            <i class="bi bi-plus-lg"></i> Add Beam
+                                        </button>
+                                    </div>
+                                    <div id="beam-tables-container">
+                                        <!-- Saved beam tables will be appended here -->
+                                    </div>
                                 </div>
-                                <div id="slab-tables-container"></div>
-                            </div>
-                            <div class="tab-pane fade" id="column-and-footing-jali" role="tabpanel" aria-labelledby="column-and-footing-jali-tab">
-                                <div class="d-flex justify-content-end mb-3 mt-3">
-                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addColumnModal">
-                                        <i class="bi bi-plus-lg"></i> Add Column And Footing Jali
-                                    </button>
+                                <div class="tab-pane fade" id="slab-steel-qty" role="tabpanel" aria-labelledby="slab-steel-qty-tab">
+                                    <div class="d-flex justify-content-end mb-3 mt-3">
+                                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSlabModal">
+                                            <i class="bi bi-plus-lg"></i> Add Slab
+                                        </button>
+                                    </div>
+                                    <div id="slab-tables-container"></div>
                                 </div>
-                                <div id="column-tables-container"></div>
-                            </div>
-                            <div class="tab-pane fade" id="footing-jali" role="tabpanel" aria-labelledby="footing-jali-tab">
-                                <div class="d-flex justify-content-end mb-3 mt-3">
-                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFootingModal">
-                                        <i class="bi bi-plus-lg"></i> Add Footing Jali
-                                    </button>
+                                <div class="tab-pane fade" id="column-and-footing-jali" role="tabpanel" aria-labelledby="column-and-footing-jali-tab">
+                                    <div class="d-flex justify-content-end mb-3 mt-3">
+                                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addColumnModal">
+                                            <i class="bi bi-plus-lg"></i> Add Column And Footing Jali
+                                        </button>
+                                    </div>
+                                    <div id="column-tables-container"></div>
                                 </div>
-                                <div id="footing-tables-container"></div>
-                            </div>
-                            <div class="tab-pane fade" id="total-overall-steel" role="tabpanel" aria-labelledby="total-overall-steel-tab">
-                                <!-- Content for Total overall steel -->
-                            </div>
-                            <div class="tab-pane fade" id="total-footing-steel-qty" role="tabpanel" aria-labelledby="total-footing-steel-qty-tab">
-                                <!-- Content for Total Footing Steel Qty. -->
+                                <div class="tab-pane fade" id="footing-jali" role="tabpanel" aria-labelledby="footing-jali-tab">
+                                    <div class="d-flex justify-content-end mb-3 mt-3">
+                                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFootingModal">
+                                            <i class="bi bi-plus-lg"></i> Add Footing Jali
+                                        </button>
+                                    </div>
+                                    <div id="footing-tables-container"></div>
+                                </div>
+                                <div class="tab-pane fade" id="total-overall-steel" role="tabpanel" aria-labelledby="total-overall-steel-tab">
+                                <!-- Content populated by JS -->
+                                </div>
+                                <div class="tab-pane fade" id="total-footing-steel-qty" role="tabpanel" aria-labelledby="total-footing-steel-qty-tab">
+                                    <!-- Content for Total Footing Steel Qty. -->
+                                </div>
                             </div>
                         </div>
                     </div>

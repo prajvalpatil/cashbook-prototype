@@ -14,7 +14,8 @@ const DB_KEYS = {
     BEAM_TABLES: 'cashbook_beam_tables',
     SLAB_TABLES: 'cashbook_slab_tables',
     COLUMN_TABLES: 'cashbook_column_tables',
-    FOOTING_TABLES: 'cashbook_footing_tables'
+    FOOTING_TABLES: 'cashbook_footing_tables',
+    FOLDERS: 'cashbook_folders'
 };
 
 const Storage = {
@@ -56,6 +57,9 @@ const Storage = {
         }
         if (!localStorage.getItem(DB_KEYS.FOOTING_TABLES)) {
             localStorage.setItem(DB_KEYS.FOOTING_TABLES, JSON.stringify([]));
+        }
+        if (!localStorage.getItem(DB_KEYS.FOLDERS)) {
+            localStorage.setItem(DB_KEYS.FOLDERS, JSON.stringify([]));
         }
     },
 
@@ -261,6 +265,39 @@ const Storage = {
             localStorage.setItem(DB_KEYS.MATERIALS, JSON.stringify(materials));
         }
         return name;
+    },
+
+    // --- Folders ---
+    getFolders: function() {
+        return JSON.parse(localStorage.getItem(DB_KEYS.FOLDERS) || '[]');
+    },
+
+    getFoldersByProject: function(projectId) {
+        return this.getFolders().filter(f => f.projectId === projectId);
+    },
+
+    addFolder: function(folder) {
+        const folders = this.getFolders();
+        folder.id = 'folder_' + Date.now();
+        folder.createdAt = new Date().toISOString();
+        folders.push(folder);
+        localStorage.setItem(DB_KEYS.FOLDERS, JSON.stringify(folders));
+        return folder;
+    },
+
+    updateFolder: function(updatedFolder) {
+        let folders = this.getFolders();
+        const index = folders.findIndex(f => f.id === updatedFolder.id);
+        if (index !== -1) {
+            folders[index] = updatedFolder;
+            localStorage.setItem(DB_KEYS.FOLDERS, JSON.stringify(folders));
+        }
+    },
+
+    deleteFolder: function(id) {
+        let folders = this.getFolders();
+        folders = folders.filter(f => f.id !== id);
+        localStorage.setItem(DB_KEYS.FOLDERS, JSON.stringify(folders));
     },
 
     // --- Beam Tables ---
